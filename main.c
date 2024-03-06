@@ -1,6 +1,7 @@
 #include <linux/input.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "argtable3.h"
 #include "cvector.h"
@@ -38,41 +39,46 @@ void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int even
 void dev_input_scan();
 int dev_input_query(dev_input_t* dev, int fd);
 
+// TODO: if stat fails it may have supplied a device name
 void dev_fs_stat_cb(uv_fs_t* req) {
   if (req->result < 0) {
-    fprintf(stderr, "Error reading '%s': %s.\n", req->path, uv_strerror(req->result));
+    fprintf(stderr, "ERROR: '%s': %s.\n", req->path, uv_strerror(req->result));
     return;
   }
 
-  if (S_ISREG(req->statbuf.st_mode))
-    printf("-");
-  else if (S_ISDIR(req->statbuf.st_mode))
-    printf("d");
-  else if (S_ISBLK(req->statbuf.st_mode))
-    printf("b");
-  else if (S_ISCHR(req->statbuf.st_mode))
-    printf("c");
-  else if (S_ISFIFO(req->statbuf.st_mode))
-    printf("p");
-  else if (S_ISLNK(req->statbuf.st_mode))
-    printf("l");
-  else if (__S_ISTYPE(req->statbuf.st_mode, __S_IFSOCK))
-    printf("s");
-  else
-    printf("?");
+  if (!S_ISCHR(req->statbuf.st_mode)) {
+    fprintf(stderr, "ERROR: '%s': Not a character device.\n", req->path);
+    uv_fs_req_cleanup(req);
+    return;
+  }
 
-  printf((req->statbuf.st_mode & S_IRUSR) ? "r" : "-");
-  printf((req->statbuf.st_mode & S_IWUSR) ? "w" : "-");
-  printf((req->statbuf.st_mode & S_IXUSR) ? "x" : "-");
-  printf((req->statbuf.st_mode & S_IRGRP) ? "r" : "-");
-  printf((req->statbuf.st_mode & S_IWGRP) ? "w" : "-");
-  printf((req->statbuf.st_mode & S_IXGRP) ? "x" : "-");
-  printf((req->statbuf.st_mode & S_IROTH) ? "r" : "-");
-  printf((req->statbuf.st_mode & S_IWOTH) ? "w" : "-");
-  printf((req->statbuf.st_mode & S_IXOTH) ? "x" : "-");
+  // check if dev input
+  int fd = open(req->path, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "ERROR: '%s': %s.\n", req->path, strerror(errno));
+    uv_fs_req_cleanup(req);
+    return;
+  }
 
-  printf("\t%s\n", req->path);
+  unsigned long bits[NLONGS(EV_CNT)];
+  if (ioctl(fd, EVIOCGBIT(0, sizeof(bits)), bits) < 0) {
+    fprintf(stderr, "ERROR: '%s': ioctl(fd, EVIOCGBIT(0, sizeof(bits)), bits);\n", req->path);
+    close(fd);
+    uv_fs_req_cleanup(req);
+    return;
+  }
 
+  // check if has KEY event
+  if (!bit_is_set(bits, EV_KEY)) {
+    fprintf(stderr, "WARNING: '%s': EV_KEY event not supported.\n", req->path);
+    close(fd);
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  
+
+  close(fd);
   uv_fs_req_cleanup(req);
 }
 
