@@ -47,6 +47,82 @@ void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int even
 void dev_input_scan();
 int dev_input_query(dev_input_t* dev, const char* filename);
 
+#define TRACK(c) [KEY_##c] = #c
+
+static const char* tracked_keys[KEY_CNT] = {
+    TRACK(0),
+    TRACK(1),
+    TRACK(2),
+    TRACK(3),
+    TRACK(4),
+    TRACK(5),
+    TRACK(6),
+    TRACK(7),
+    TRACK(8),
+    TRACK(9),
+
+    TRACK(KP0),
+    TRACK(KP1),
+    TRACK(KP2),
+    TRACK(KP3),
+    TRACK(KP4),
+    TRACK(KP5),
+    TRACK(KP6),
+    TRACK(KP7),
+    TRACK(KP8),
+    TRACK(KP9),
+
+    TRACK(A),
+    TRACK(B),
+    TRACK(C),
+    TRACK(D),
+    TRACK(E),
+    TRACK(F),
+    TRACK(G),
+    TRACK(H),
+    TRACK(I),
+    TRACK(J),
+    TRACK(K),
+    TRACK(L),
+    TRACK(M),
+    TRACK(N),
+    TRACK(O),
+    TRACK(P),
+    TRACK(Q),
+    TRACK(R),
+    TRACK(S),
+    TRACK(T),
+    TRACK(U),
+    TRACK(V),
+    TRACK(W),
+    TRACK(X),
+    TRACK(Y),
+    TRACK(Z),
+
+    TRACK(ENTER),
+    TRACK(TAB),
+    TRACK(KPENTER),
+    TRACK(SPACE),
+    TRACK(LEFTSHIFT),
+    TRACK(RIGHTSHIFT),
+    TRACK(LEFTCTRL),
+    TRACK(RIGHTCTRL),
+    TRACK(LEFTALT),
+    TRACK(RIGHTALT),
+    
+    TRACK(GRAVE),
+    TRACK(MINUS),
+    TRACK(EQUAL),
+    TRACK(LEFTBRACE),
+    TRACK(RIGHTBRACE),
+    TRACK(BACKSLASH),
+    TRACK(SEMICOLON),
+    TRACK(APOSTROPHE),
+    TRACK(COMMA),
+    TRACK(DOT),
+    TRACK(SLASH),
+};
+
 void dev_fs_read_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
@@ -57,8 +133,9 @@ void dev_fs_read_cb(uv_fs_t* req) {
   }
 
   if (data->ev.type == EV_KEY) {
-    // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
-    printf("%s: type: %i, code: %i, value: %i\n", data->filename, data->ev.type, data->ev.code, data->ev.value);
+    if (tracked_keys[data->ev.code] != NULL)
+      // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
+      printf("%s: type: %i, code: %i (%s), value: %i\n", data->filename, data->ev.type, data->ev.code, tracked_keys[data->ev.code], data->ev.value);
   }
 
   uv_fs_req_cleanup(req);
