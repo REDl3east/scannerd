@@ -23,7 +23,6 @@
 static inline int bit_is_set(const unsigned long* array, int bit);
 
 typedef struct dev_input {
-  int fd;
   char name[256];
   char phys[256];
   char uniq[256];
@@ -37,13 +36,34 @@ typedef struct dev_input {
 typedef struct req_data_t {
   uv_fs_t req;
   const char* filename;
+  dev_input_t info;
+  uv_file file_id;
+  uv_buf_t ev_buf;
   struct input_event ev;
 } req_data_t;
 
 void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int events, int status);
 
 void dev_input_scan();
-int dev_input_query(dev_input_t* dev, int fd);
+int dev_input_query(dev_input_t* dev, const char* filename);
+
+void dev_fs_read_cb(uv_fs_t* req) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (req->result < 0) {
+    printf("%s\n", uv_strerror(req->result));
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (data->ev.type == EV_KEY) {
+    // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
+    printf("%s: type: %i, code: %i, value: %i\n", data->filename, data->ev.type, data->ev.code, data->ev.value);
+  }
+
+  uv_fs_req_cleanup(req);
+  uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
+}
 
 void dev_fs_open_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
@@ -54,16 +74,17 @@ void dev_fs_open_cb(uv_fs_t* req) {
     return;
   }
 
-  uv_fs_req_cleanup(req);
+  data->file_id     = req->result;
+  data->ev_buf.base = (char*)&data->ev;
+  data->ev_buf.len  = sizeof(data->ev);
 
-  // read an event now
-  
+  uv_fs_req_cleanup(req);
+  uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
 }
 
 // TODO: if stat fails it may have supplied a device name
 void dev_fs_stat_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
-
 
   if (req->result < 0) {
     fprintf(stderr, "ERROR: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
@@ -73,6 +94,18 @@ void dev_fs_stat_cb(uv_fs_t* req) {
 
   if (!S_ISCHR(req->statbuf.st_mode)) {
     fprintf(stderr, "ERROR: '%s': Not a character device.\n", data->filename);
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (!dev_input_query(&data->info, data->filename)) {
+    fprintf(stderr, "ERROR: '%s': Failed to grab evdev info.\n", data->filename);
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (!bit_is_set(data->info.bits, EV_KEY)) {
+    fprintf(stderr, "ERROR: '%s': Device does not support EV_KEY event.\n", data->filename);
     uv_fs_req_cleanup(req);
     return;
   }
@@ -174,14 +207,8 @@ void dev_input_scan() {
     char path[MAX_DEV_INPUT_PATH];
     snprintf(path, MAX_DEV_INPUT_PATH, "%sevent%d", DEV_INPUT_PATH, device);
 
-    int fd = open(path, O_RDONLY);
-    if (fd < 0) {
-      fprintf(stderr, "Error: %s: %s.\n", path, strerror(errno));
-      continue;
-    }
-
     dev_input_t dev;
-    if (!dev_input_query(&dev, fd)) continue;
+    if (!dev_input_query(&dev, path)) continue;
 
     printf("path:             " DEV_INPUT_PATH "event%d\n", device);
     printf("name:             %s\n", dev.name);
@@ -242,61 +269,69 @@ void dev_input_scan() {
   uv_fs_req_cleanup(&fs_dir_req);
 }
 
-int dev_input_query(dev_input_t* dev, int fd) {
+int dev_input_query(dev_input_t* dev, const char* filename) {
+  int fd = open(filename, O_RDONLY);
+  if (fd < 0) {
+    fprintf(stderr, "ERROR: %s: %s.\n", filename, strerror(errno));
+    return 0;
+  }
+
   int rc;
 
-  if (fd < 0) return 0;
+  if (fd < 0) {
+    close(fd);
+    return 0;
+  }
 
   rc = ioctl(fd, EVIOCGBIT(0, sizeof(dev->bits)), dev->bits);
   if (rc < 0) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGBIT(0, sizeof(dev->bits)), dev->bits);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGNAME(sizeof(dev->name) - 1), dev->name);
   if (rc < 0) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGNAME(sizeof(dev->name) - 1), dev->name);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGPHYS(sizeof(dev->phys) - 1), dev->phys);
   if (rc < 0 && errno != ENOENT) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGPHYS(sizeof(dev->phys) - 1), dev->phys);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGUNIQ(sizeof(dev->uniq) - 1), dev->uniq);
   if (rc < 0 && errno != ENOENT) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGUNIQ(sizeof(dev->uniq) - 1), dev->uniq);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGID, &dev->ids);
   if (rc < 0) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGID, &dev->ids);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGVERSION, &dev->driver_version);
   if (rc < 0) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGVERSION, &dev->driver_version);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(dev->key_bits)), dev->key_bits);
   if (rc < 0) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGBIT(EV_KEY, sizeof(dev->key_bits)), dev->key_bits);\n");
+    close(fd);
     return 0;
   }
 
   rc = ioctl(fd, EVIOCGKEY(sizeof(dev->key_values)), dev->key_values);
   if (rc < 0) {
-    fprintf(stderr, "ERROR: ioctl(fd, EVIOCGKEY(sizeof(dev->key_values)), dev->key_values);\n");
+    close(fd);
     return 0;
   }
 
-  dev->fd = fd;
-
+  close(fd);
   return 1;
 }
 
