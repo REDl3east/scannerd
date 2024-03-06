@@ -38,11 +38,50 @@ void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int even
 void dev_input_scan();
 int dev_input_query(dev_input_t* dev, int fd);
 
+void dev_fs_stat_cb(uv_fs_t* req) {
+  if (req->result < 0) {
+    fprintf(stderr, "Error reading '%s': %s.\n", req->path, uv_strerror(req->result));
+    return;
+  }
+
+  if (S_ISREG(req->statbuf.st_mode))
+    printf("-");
+  else if (S_ISDIR(req->statbuf.st_mode))
+    printf("d");
+  else if (S_ISBLK(req->statbuf.st_mode))
+    printf("b");
+  else if (S_ISCHR(req->statbuf.st_mode))
+    printf("c");
+  else if (S_ISFIFO(req->statbuf.st_mode))
+    printf("p");
+  else if (S_ISLNK(req->statbuf.st_mode))
+    printf("l");
+  else if (__S_ISTYPE(req->statbuf.st_mode, __S_IFSOCK))
+    printf("s");
+  else
+    printf("?");
+
+  printf((req->statbuf.st_mode & S_IRUSR) ? "r" : "-");
+  printf((req->statbuf.st_mode & S_IWUSR) ? "w" : "-");
+  printf((req->statbuf.st_mode & S_IXUSR) ? "x" : "-");
+  printf((req->statbuf.st_mode & S_IRGRP) ? "r" : "-");
+  printf((req->statbuf.st_mode & S_IWGRP) ? "w" : "-");
+  printf((req->statbuf.st_mode & S_IXGRP) ? "x" : "-");
+  printf((req->statbuf.st_mode & S_IROTH) ? "r" : "-");
+  printf((req->statbuf.st_mode & S_IWOTH) ? "w" : "-");
+  printf((req->statbuf.st_mode & S_IXOTH) ? "x" : "-");
+
+  printf("\t%s\n", req->path);
+
+  uv_fs_req_cleanup(req);
+}
+
 int main(int argc, char** argv) {
+  arg_file_t* dev  = arg_filen(NULL, NULL, NULL, 0, argc + 2, "/dev/input/eventX path.");
   arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
   arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
   arg_end_t* end   = arg_end(20);
-  void* argtable[] = {help, vers, end};
+  void* argtable[] = {dev, help, vers, end};
 
   if (arg_nullcheck(argtable) != 0) {
     printf("%s: insufficient memory\n", argv[0]);
@@ -72,15 +111,23 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  uv_fs_t* statreq = (uv_fs_t*)malloc(sizeof(uv_fs_t) * dev->count);
+  for (int i = 0; i < dev->count; i++) {
+    uv_fs_stat(uv_default_loop(), statreq + i, dev->filename[i], dev_fs_stat_cb);
+  }
+
   // dev_input_scan();
 
   // uv_fs_event_t dev_input_fs_event;
   // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
   // uv_fs_event_start(&dev_input_fs_event, fs_event_dev_input_cb, DEV_INPUT_PATH, 0);
 
-  // uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  // uv_loop_close(uv_default_loop());
+  uv_loop_close(uv_default_loop());
+  arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+
+  free(statreq);
 
   return 0;
 }
