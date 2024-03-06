@@ -38,8 +38,41 @@ void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int even
 void dev_input_scan();
 int dev_input_query(dev_input_t* dev, int fd);
 
-int main() {
-  dev_input_scan();
+int main(int argc, char** argv) {
+  arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
+  arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
+  arg_end_t* end   = arg_end(20);
+  void* argtable[] = {help, vers, end};
+
+  if (arg_nullcheck(argtable) != 0) {
+    printf("%s: insufficient memory\n", argv[0]);
+    return 1;
+  }
+
+  int nerrors = arg_parse(argc, argv, argtable);
+
+  if (help->count > 0) {
+    printf("Usage: %s", argv[0]);
+    arg_print_syntax(stdout, argtable, "\n");
+    arg_print_glossary(stdout, argtable, "  %-10s %s\n");
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 0;
+  }
+
+  if (vers->count > 0) {
+    printf("March 2024, Dalton Overmyer\n");
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 0;
+  }
+
+  if (nerrors > 0) {
+    arg_print_errors(stdout, end, argv[0]);
+    printf("Try '%s --help' for more information.\n", argv[0]);
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 1;
+  }
+
+  // dev_input_scan();
 
   // uv_fs_event_t dev_input_fs_event;
   // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
@@ -103,7 +136,7 @@ void dev_input_scan() {
     printf("id vendor:        %d\n", dev.ids.vendor);
     printf("id version:       %d\n", dev.ids.version);
 
-    printf("Supported events: ");
+    printf("supported events: ");
     for (int i = 0; i < EV_CNT; i++) {
       if (bit_is_set(dev.bits, i)) {
         switch (i) {
