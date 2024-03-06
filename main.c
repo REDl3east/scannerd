@@ -20,6 +20,8 @@
 #define LONG_BITS (sizeof(long) * 8)
 #define NLONGS(x) (((x) + LONG_BITS - 1) / LONG_BITS)
 
+static inline int bit_is_set(const unsigned long* array, int bit);
+
 typedef struct dev_input {
   int fd;
   char name[256];
@@ -32,54 +34,51 @@ typedef struct dev_input {
   unsigned long key_values[NLONGS(KEY_CNT)];
 } dev_input_t;
 
-static inline int bit_is_set(const unsigned long* array, int bit);
+typedef struct req_data_t {
+  uv_fs_t req;
+  const char* filename;
+  struct input_event ev;
+} req_data_t;
 
 void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int events, int status);
 
 void dev_input_scan();
 int dev_input_query(dev_input_t* dev, int fd);
 
+void dev_fs_open_cb(uv_fs_t* req) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (req->result < 0) {
+    fprintf(stderr, "Error at opening file: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  uv_fs_req_cleanup(req);
+
+  // read an event now
+  
+}
+
 // TODO: if stat fails it may have supplied a device name
 void dev_fs_stat_cb(uv_fs_t* req) {
+  req_data_t* data = (req_data_t*)req->data;
+
+
   if (req->result < 0) {
-    fprintf(stderr, "ERROR: '%s': %s.\n", req->path, uv_strerror(req->result));
+    fprintf(stderr, "ERROR: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
+    uv_fs_req_cleanup(req);
     return;
   }
 
   if (!S_ISCHR(req->statbuf.st_mode)) {
-    fprintf(stderr, "ERROR: '%s': Not a character device.\n", req->path);
+    fprintf(stderr, "ERROR: '%s': Not a character device.\n", data->filename);
     uv_fs_req_cleanup(req);
     return;
   }
 
-  // check if dev input
-  int fd = open(req->path, O_RDONLY);
-  if (fd < 0) {
-    fprintf(stderr, "ERROR: '%s': %s.\n", req->path, strerror(errno));
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  unsigned long bits[NLONGS(EV_CNT)];
-  if (ioctl(fd, EVIOCGBIT(0, sizeof(bits)), bits) < 0) {
-    fprintf(stderr, "ERROR: '%s': ioctl(fd, EVIOCGBIT(0, sizeof(bits)), bits);\n", req->path);
-    close(fd);
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  // check if has KEY event
-  if (!bit_is_set(bits, EV_KEY)) {
-    fprintf(stderr, "WARNING: '%s': EV_KEY event not supported.\n", req->path);
-    close(fd);
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  
-
-  close(fd);
   uv_fs_req_cleanup(req);
+  uv_fs_open(uv_default_loop(), req, data->filename, O_RDONLY, 0, dev_fs_open_cb);
 }
 
 int main(int argc, char** argv) {
@@ -117,9 +116,12 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  uv_fs_t* statreq = (uv_fs_t*)malloc(sizeof(uv_fs_t) * dev->count);
+  req_data_t* reqs = (req_data_t*)malloc(sizeof(req_data_t) * dev->count);
   for (int i = 0; i < dev->count; i++) {
-    uv_fs_stat(uv_default_loop(), statreq + i, dev->filename[i], dev_fs_stat_cb);
+    reqs[i].filename = dev->filename[i];
+    reqs[i].req.data = reqs + i;
+
+    uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
   }
 
   // dev_input_scan();
@@ -133,7 +135,7 @@ int main(int argc, char** argv) {
   uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
 
-  free(statreq);
+  free(reqs);
 
   return 0;
 }
