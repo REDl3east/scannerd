@@ -109,7 +109,7 @@ static const char* tracked_keys[KEY_CNT] = {
     TRACK(RIGHTCTRL),
     TRACK(LEFTALT),
     TRACK(RIGHTALT),
-    
+
     TRACK(GRAVE),
     TRACK(MINUS),
     TRACK(EQUAL),
@@ -123,6 +123,10 @@ static const char* tracked_keys[KEY_CNT] = {
     TRACK(SLASH),
 };
 
+#define KEY_RELEASE 0
+#define KEY_PRESS   1
+#define KEY_HOLD    2
+
 void dev_fs_read_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
@@ -133,9 +137,9 @@ void dev_fs_read_cb(uv_fs_t* req) {
   }
 
   if (data->ev.type == EV_KEY) {
-    if (tracked_keys[data->ev.code] != NULL)
+    if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL)
       // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
-      printf("%s: type: %i, code: %i (%s), value: %i\n", data->filename, data->ev.type, data->ev.code, tracked_keys[data->ev.code], data->ev.value);
+      printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
   }
 
   uv_fs_req_cleanup(req);
