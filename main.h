@@ -41,18 +41,12 @@ typedef struct dev_input {
 
 typedef struct req_data_t {
   uv_fs_t req;
-  const char filename[PATH_MAX];
+  char filename[PATH_MAX];
   dev_input_t info;
   uv_file file_id;
   uv_buf_t ev_buf;
   struct input_event ev;
 } req_data_t;
-
-typedef struct vindex {
-  int* data;
-  size_t count;
-  size_t capacity;
-} vindex_t;
 
 static const char* tracked_keys[KEY_CNT] = {
     [KEY_0] = "0",

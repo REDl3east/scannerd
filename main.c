@@ -1,14 +1,14 @@
 #include "main.h"
 
 int main(int argc, char** argv) {
-  arg_file_t* dev  = arg_filen(NULL, NULL, NULL, 0, argc + 2, "/dev/input/eventX path.");
+  arg_file_t* dev  = arg_filen(NULL, NULL, NULL, 1, argc + 2, "/dev/input/eventX path.");
   arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
   arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
   arg_end_t* end   = arg_end(20);
   void* argtable[] = {dev, help, vers, end};
 
   if (arg_nullcheck(argtable) != 0) {
-    printf("%s: insufficient memory\n", argv[0]);
+    fprintf(stderr, "%s: insufficient memory\n", argv[0]);
     return 1;
   }
 
@@ -29,30 +29,35 @@ int main(int argc, char** argv) {
   }
 
   if (nerrors > 0) {
-    arg_print_errors(stdout, end, argv[0]);
-    printf("Try '%s --help' for more information.\n", argv[0]);
+    arg_print_errors(stderr, end, argv[0]);
+    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
     return 1;
   }
 
-  req_data_t* reqs = (req_data_t*)malloc(sizeof(req_data_t) * dev->count);
-  for (int i = 0; i < dev->count; i++) {
-    reqs[i].filename = dev->filename[i];
-    reqs[i].req.data = reqs + i;
+  // req_data_t* reqs = (req_data_t*)malloc(sizeof(req_data_t) * dev->count);
+  // for (int i = 0; i < dev->count; i++) {
+  //   strncpy(reqs[i].filename, dev->filename[i], 4096);
+  //   reqs[i].req.data = reqs + i;
+  //   uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
+  // }
 
-    uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
-  }
+  req_data_t req;
+  strncpy(req.filename, dev->filename[0], 4096);
+  req.req.data = &req;
 
-  uv_fs_event_t dev_input_fs_event;
-  uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
-  uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
+  uv_fs_stat(uv_default_loop(), &req.req, req.filename, dev_fs_stat_cb);
+
+  // uv_fs_event_t dev_input_fs_event;
+  // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
+  // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
 
-  free(reqs);
+  // free(reqs);
 
   return 0;
 }
