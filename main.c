@@ -1,204 +1,4 @@
-#include <linux/input.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-
-#include "argtable3.h"
-#include "cvector.h"
-#include "uv.h"
-
-#define SV_IMPLEMENTATION
-#include "sv.h"
-
-#define DEV_INPUT_PATH       "/dev/input/"
-#define DEV_INPUT_PATH_LEN   sizeof(DEV_INPUT_PATH) - 1
-#define MAX_DEV_INPUT_PATH   255
-#define MAX_DEV_INPUT_EVENTS 20
-
-// bits and pieces taken from https://gitlab.freedesktop.org/libevdev/libevdev
-
-#define LONG_BITS (sizeof(long) * 8)
-#define NLONGS(x) (((x) + LONG_BITS - 1) / LONG_BITS)
-
-static inline int bit_is_set(const unsigned long* array, int bit);
-
-typedef struct dev_input {
-  char name[256];
-  char phys[256];
-  char uniq[256];
-  struct input_id ids;
-  int driver_version;
-  unsigned long bits[NLONGS(EV_CNT)];
-  unsigned long key_bits[NLONGS(KEY_CNT)];
-  unsigned long key_values[NLONGS(KEY_CNT)];
-} dev_input_t;
-
-typedef struct req_data_t {
-  uv_fs_t req;
-  const char* filename;
-  dev_input_t info;
-  uv_file file_id;
-  uv_buf_t ev_buf;
-  struct input_event ev;
-} req_data_t;
-
-void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int events, int status);
-
-void dev_input_scan();
-int dev_input_query(dev_input_t* dev, const char* filename);
-
-#define TRACK_KEY(c) [KEY_##c] = #c
-#define TRACK_BTN(c) [BTN_##c] = #c
-
-static const char* tracked_keys[KEY_CNT] = {
-    TRACK_KEY(0),
-    TRACK_KEY(1),
-    TRACK_KEY(2),
-    TRACK_KEY(3),
-    TRACK_KEY(4),
-    TRACK_KEY(5),
-    TRACK_KEY(6),
-    TRACK_KEY(7),
-    TRACK_KEY(8),
-    TRACK_KEY(9),
-
-    TRACK_KEY(KP0),
-    TRACK_KEY(KP1),
-    TRACK_KEY(KP2),
-    TRACK_KEY(KP3),
-    TRACK_KEY(KP4),
-    TRACK_KEY(KP5),
-    TRACK_KEY(KP6),
-    TRACK_KEY(KP7),
-    TRACK_KEY(KP8),
-    TRACK_KEY(KP9),
-
-    TRACK_KEY(A),
-    TRACK_KEY(B),
-    TRACK_KEY(C),
-    TRACK_KEY(D),
-    TRACK_KEY(E),
-    TRACK_KEY(F),
-    TRACK_KEY(G),
-    TRACK_KEY(H),
-    TRACK_KEY(I),
-    TRACK_KEY(J),
-    TRACK_KEY(K),
-    TRACK_KEY(L),
-    TRACK_KEY(M),
-    TRACK_KEY(N),
-    TRACK_KEY(O),
-    TRACK_KEY(P),
-    TRACK_KEY(Q),
-    TRACK_KEY(R),
-    TRACK_KEY(S),
-    TRACK_KEY(T),
-    TRACK_KEY(U),
-    TRACK_KEY(V),
-    TRACK_KEY(W),
-    TRACK_KEY(X),
-    TRACK_KEY(Y),
-    TRACK_KEY(Z),
-
-    TRACK_KEY(ENTER),
-    TRACK_KEY(TAB),
-    TRACK_KEY(KPENTER),
-    TRACK_KEY(SPACE),
-    TRACK_KEY(LEFTSHIFT),
-    TRACK_KEY(RIGHTSHIFT),
-    TRACK_KEY(LEFTCTRL),
-    TRACK_KEY(RIGHTCTRL),
-    TRACK_KEY(LEFTALT),
-    TRACK_KEY(RIGHTALT),
-
-    TRACK_KEY(GRAVE),
-    TRACK_KEY(MINUS),
-    TRACK_KEY(EQUAL),
-    TRACK_KEY(LEFTBRACE),
-    TRACK_KEY(RIGHTBRACE),
-    TRACK_KEY(BACKSLASH),
-    TRACK_KEY(SEMICOLON),
-    TRACK_KEY(APOSTROPHE),
-    TRACK_KEY(COMMA),
-    TRACK_KEY(DOT),
-    TRACK_KEY(SLASH),
-    
-    TRACK_BTN(LEFT),
-    TRACK_BTN(RIGHT),
-    TRACK_BTN(MIDDLE),
-};
-
-#define KEY_RELEASE 0
-#define KEY_PRESS   1
-#define KEY_HOLD    2
-
-void dev_fs_read_cb(uv_fs_t* req) {
-  req_data_t* data = (req_data_t*)req->data;
-
-  if (req->result < 0) {
-    printf("%s\n", uv_strerror(req->result));
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  if (data->ev.type == EV_KEY) {
-    if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL)
-      // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
-      printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
-  }
-
-  uv_fs_req_cleanup(req);
-  uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
-}
-
-void dev_fs_open_cb(uv_fs_t* req) {
-  req_data_t* data = (req_data_t*)req->data;
-
-  if (req->result < 0) {
-    fprintf(stderr, "Error at opening file: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  data->file_id     = req->result;
-  data->ev_buf.base = (char*)&data->ev;
-  data->ev_buf.len  = sizeof(data->ev);
-
-  uv_fs_req_cleanup(req);
-  uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
-}
-
-// TODO: if stat fails it may have supplied a device name
-void dev_fs_stat_cb(uv_fs_t* req) {
-  req_data_t* data = (req_data_t*)req->data;
-
-  if (req->result < 0) {
-    fprintf(stderr, "ERROR: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  if (!S_ISCHR(req->statbuf.st_mode)) {
-    fprintf(stderr, "ERROR: '%s': Not a character device.\n", data->filename);
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  if (!dev_input_query(&data->info, data->filename)) {
-    fprintf(stderr, "ERROR: '%s': Failed to grab evdev info.\n", data->filename);
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  if (!bit_is_set(data->info.bits, EV_KEY)) {
-    fprintf(stderr, "ERROR: '%s': Device does not support EV_KEY event.\n", data->filename);
-    uv_fs_req_cleanup(req);
-    return;
-  }
-
-  uv_fs_req_cleanup(req);
-  uv_fs_open(uv_default_loop(), req, data->filename, O_RDONLY, 0, dev_fs_open_cb);
-}
+#include "main.h"
 
 int main(int argc, char** argv) {
   arg_file_t* dev  = arg_filen(NULL, NULL, NULL, 0, argc + 2, "/dev/input/eventX path.");
@@ -419,6 +219,74 @@ int dev_input_query(dev_input_t* dev, const char* filename) {
 
   close(fd);
   return 1;
+}
+
+void dev_fs_read_cb(uv_fs_t* req) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (req->result < 0) {
+    printf("%s\n", uv_strerror(req->result));
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (data->ev.type == EV_KEY) {
+    if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL)
+      // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
+      printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
+  }
+
+  uv_fs_req_cleanup(req);
+  uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
+}
+
+void dev_fs_open_cb(uv_fs_t* req) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (req->result < 0) {
+    fprintf(stderr, "Error at opening file: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  data->file_id     = req->result;
+  data->ev_buf.base = (char*)&data->ev;
+  data->ev_buf.len  = sizeof(data->ev);
+
+  uv_fs_req_cleanup(req);
+  uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
+}
+
+// TODO: if stat fails it may have supplied a device name
+void dev_fs_stat_cb(uv_fs_t* req) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (req->result < 0) {
+    fprintf(stderr, "ERROR: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (!S_ISCHR(req->statbuf.st_mode)) {
+    fprintf(stderr, "ERROR: '%s': Not a character device.\n", data->filename);
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (!dev_input_query(&data->info, data->filename)) {
+    fprintf(stderr, "ERROR: '%s': Failed to grab evdev info.\n", data->filename);
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  if (!bit_is_set(data->info.bits, EV_KEY)) {
+    fprintf(stderr, "ERROR: '%s': Device does not support EV_KEY event.\n", data->filename);
+    uv_fs_req_cleanup(req);
+    return;
+  }
+
+  uv_fs_req_cleanup(req);
+  uv_fs_open(uv_default_loop(), req, data->filename, O_RDONLY, 0, dev_fs_open_cb);
 }
 
 static inline int bit_is_set(const unsigned long* array, int bit) {

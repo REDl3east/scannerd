@@ -135,3 +135,7 @@ StatementMacros:
 TabWidth:        8
 UseCRLF:         false
 UseTab:          Never
+---
+Language: ObjC
+# Don't format .proto files.
+DisableFormat: true
