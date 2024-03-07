@@ -35,18 +35,13 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  // req_data_t* reqs = (req_data_t*)malloc(sizeof(req_data_t) * dev->count);
-  // for (int i = 0; i < dev->count; i++) {
-  //   strncpy(reqs[i].filename, dev->filename[i], 4096);
-  //   reqs[i].req.data = reqs + i;
-  //   uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
-  // }
+  req_data_t* reqs = (req_data_t*)malloc(sizeof(req_data_t) * dev->count);
+  for (int i = 0; i < dev->count; i++) {
+    strncpy(reqs[i].filename, dev->filename[i], 4096);
+    reqs[i].req.data = reqs + i;
 
-  req_data_t req;
-  strncpy(req.filename, dev->filename[0], 4096);
-  req.req.data = &req;
-
-  uv_fs_stat(uv_default_loop(), &req.req, req.filename, dev_fs_stat_cb);
+    uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
+  }
 
   // uv_fs_event_t dev_input_fs_event;
   // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
