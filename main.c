@@ -52,7 +52,7 @@ int main(int argc, char** argv) {
   uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
 
-  // free(reqs);
+  free(reqs);
 
   return 0;
 }
