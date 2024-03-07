@@ -18,7 +18,7 @@ void on_write_complete_cb(uv_write_t* req, int status) {
 }
 
 // Each buffer is used only once and the user is responsible for freeing it in the uv_udp_recv_cb or the uv_read_cb callback.
-// We do it in the write callback :)
+// We do it in the write complete callback :)
 void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
   if (nread > 0) {
     printf("read: ");
