@@ -40,7 +40,9 @@ typedef struct dev_input {
 } dev_input_t;
 
 typedef struct req_data_t {
-  uv_fs_t req;
+  int initalized;
+  uv_fs_t read_req;
+  uv_fs_poll_t poll_req;
   char filename[PATH_MAX];
   dev_input_t info;
   uv_file file_id;

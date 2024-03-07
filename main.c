@@ -1,7 +1,27 @@
 #include "main.h"
 
+void dev_signal_cb(uv_signal_t* handle, int signum) {
+  uv_stop(uv_default_loop());
+}
+
+void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (status < 0) {
+    printf("WARNING: '%s': %s, will wait for a connection.\n", data->filename, uv_strerror(status));
+    return;
+  }
+  if (data->initalized) {
+    return;
+  }
+
+  printf("INFO: '%s': device found, attempting to initialize.\n", data->filename);
+
+  uv_fs_stat(uv_default_loop(), &data->read_req, data->filename, dev_fs_stat_cb);
+}
+
 int main(int argc, char** argv) {
-  arg_file_t* dev  = arg_filen(NULL, NULL, NULL, 1, argc + 2, "/dev/input/eventX path.");
+  arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
   arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
   arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
   arg_end_t* end   = arg_end(20);
@@ -35,13 +55,20 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  req_data_t* reqs = (req_data_t*)malloc(sizeof(req_data_t) * dev->count);
-  for (int i = 0; i < dev->count; i++) {
-    strncpy(reqs[i].filename, dev->filename[i], 4096);
-    reqs[i].req.data = reqs + i;
+  uv_signal_t sig;
+  uv_signal_init(uv_default_loop(), &sig);
+  uv_signal_start(&sig, dev_signal_cb, SIGINT);
 
-    uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
-  }
+  req_data_t req_data;
+  strncpy(req_data.filename, dev->filename[0], 4096);
+  req_data.initalized = 0;
+
+  req_data.read_req.data = &req_data;
+  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
+
+  req_data.poll_req.data = &req_data;
+  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
+  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
   // uv_fs_event_t dev_input_fs_event;
   // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
@@ -52,7 +79,7 @@ int main(int argc, char** argv) {
   uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
 
-  free(reqs);
+  printf("INFO: Exiting...");
 
   return 0;
 }
@@ -80,7 +107,7 @@ void dev_fs_read_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
   if (req->result < 0) {
-    printf("%s\n", uv_strerror(req->result));
+    data->initalized = 0;
     uv_fs_req_cleanup(req);
     return;
   }
@@ -104,9 +131,12 @@ void dev_fs_open_cb(uv_fs_t* req) {
     return;
   }
 
+  data->initalized  = 1;
   data->file_id     = req->result;
   data->ev_buf.base = (char*)&data->ev;
   data->ev_buf.len  = sizeof(data->ev);
+
+  printf("INFO: '%s': initialized\n", data->filename);
 
   uv_fs_req_cleanup(req);
   uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
@@ -117,7 +147,7 @@ void dev_fs_stat_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
   if (req->result < 0) {
-    fprintf(stderr, "ERROR: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
+    fprintf(stderr, "WARNING: '%s': %s, will wait for a connection.\n", data->filename, uv_strerror(req->result));
     uv_fs_req_cleanup(req);
     return;
   }
