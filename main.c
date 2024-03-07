@@ -1,6 +1,54 @@
 #include "main.h"
 
+#define SOCK_FILE "/run/scannerd.sock"
 
+void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+  buf->base = malloc(suggested_size);
+  buf->len  = suggested_size;
+}
+
+void on_close_cb(uv_handle_t* client) {
+  free(client);
+}
+
+void on_write_cb(uv_write_t* req, int status) {
+  // uv_close((uv_handle_t*)req->handle, on_close_cb);
+  free(req->data);
+  free(req);
+}
+
+// Each buffer is used only once and the user is responsible for freeing it in the uv_udp_recv_cb or the uv_read_cb callback.
+// We do it in the write callback :)
+void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
+  if (nread > 0) {
+    printf("read: ");
+    printf("%.*s", (int)buf->len, buf->base);
+
+    uv_write_t* write_req = malloc(sizeof(uv_write_t));
+    write_req->data       = (void*)buf->base;
+
+    uv_write(write_req, client, buf, 1, on_write_cb);
+  }
+
+  if (nread < 0 || nread == UV_EOF) {
+    printf("disconnected\n");
+    uv_close((uv_handle_t*)client, on_close_cb);
+    return;
+  }
+}
+
+void on_connect_cb(uv_stream_t* stream, int status) {
+  uv_pipe_t* client = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
+  uv_pipe_init(stream->loop, client, 0);
+  int r = uv_accept(stream, (uv_stream_t*)client);
+
+  if (r < 0) {
+    // error
+  }
+
+  uv_read_start((uv_stream_t*)client, my_alloc_cb, on_read_cb);
+  printf("connected...\n");
+}
 
 int main(int argc, char** argv) {
   arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
@@ -52,6 +100,18 @@ int main(int argc, char** argv) {
   uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
   uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
+  uv_fs_t unlink_req;
+  uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
+  if (unlink_req.result < 0) {
+    printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
+  }
+  uv_fs_req_cleanup(&unlink_req);
+
+  uv_pipe_t pipe;
+  uv_pipe_init(uv_default_loop(), &pipe, 0);
+  uv_pipe_bind(&pipe, SOCK_FILE);
+  uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
+
   // uv_fs_event_t dev_input_fs_event;
   // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
   // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
@@ -89,8 +149,6 @@ void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int 
   printf("[%d] %s\n", event_num, path);
 }
 
-
-
 void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr) {
   req_data_t* data = (req_data_t*)req->data;
 
@@ -117,9 +175,10 @@ void dev_fs_read_cb(uv_fs_t* req) {
   }
 
   if (data->ev.type == EV_KEY) {
-    if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL)
+    if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL) {
       // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
-      printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
+      // printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
+    }
   }
 
   uv_fs_req_cleanup(req);
