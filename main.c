@@ -43,11 +43,10 @@ int main(int argc, char** argv) {
     uv_fs_stat(uv_default_loop(), &reqs[i].req, reqs[i].filename, dev_fs_stat_cb);
   }
 
-  // dev_input_scan();
 
-  // uv_fs_event_t dev_input_fs_event;
-  // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
-  // uv_fs_event_start(&dev_input_fs_event, fs_event_dev_input_cb, DEV_INPUT_PATH, 0);
+  uv_fs_event_t dev_input_fs_event;
+  uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
+  uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
@@ -59,7 +58,7 @@ int main(int argc, char** argv) {
   return 0;
 }
 
-void fs_event_dev_input_cb(uv_fs_event_t* handle, const char* filename, int events, int status) {
+void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int status) {
   char path[PATH_MAX - DEV_INPUT_PATH_LEN];
   if (status != 0) return;
   if (!(events & UV_RENAME)) return;
