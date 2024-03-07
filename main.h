@@ -128,7 +128,9 @@ static const char* tracked_keys[KEY_CNT] = {
     [BTN_MIDDLE] = "MIDDLE",
 };
 
+void dev_signal_cb(uv_signal_t* handle, int signum);
 void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int status);
+void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr);
 void dev_fs_read_cb(uv_fs_t* req);
 void dev_fs_open_cb(uv_fs_t* req);
 void dev_fs_stat_cb(uv_fs_t* req);

@@ -1,24 +1,6 @@
 #include "main.h"
 
-void dev_signal_cb(uv_signal_t* handle, int signum) {
-  uv_stop(uv_default_loop());
-}
 
-void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr) {
-  req_data_t* data = (req_data_t*)req->data;
-
-  if (status < 0) {
-    printf("WARNING: '%s': %s, will wait for a connection.\n", data->filename, uv_strerror(status));
-    return;
-  }
-  if (data->initalized) {
-    return;
-  }
-
-  printf("INFO: '%s': device found, attempting to initialize.\n", data->filename);
-
-  uv_fs_stat(uv_default_loop(), &data->read_req, data->filename, dev_fs_stat_cb);
-}
 
 int main(int argc, char** argv) {
   arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
@@ -84,6 +66,10 @@ int main(int argc, char** argv) {
   return 0;
 }
 
+void dev_signal_cb(uv_signal_t* handle, int signum) {
+  uv_stop(uv_default_loop());
+}
+
 void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int status) {
   char path[PATH_MAX - DEV_INPUT_PATH_LEN];
   if (status != 0) return;
@@ -101,6 +87,24 @@ void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int 
   snprintf(path, PATH_MAX - DEV_INPUT_PATH_LEN, "%s%s", DEV_INPUT_PATH, filename);
 
   printf("[%d] %s\n", event_num, path);
+}
+
+
+
+void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr) {
+  req_data_t* data = (req_data_t*)req->data;
+
+  if (status < 0) {
+    printf("WARNING: '%s': %s, will wait for a connection.\n", data->filename, uv_strerror(status));
+    return;
+  }
+  if (data->initalized) {
+    printf("WARNING: '%s': device already initialized.\n", data->filename);
+    return;
+  }
+
+  printf("INFO: '%s': device found, attempting to initialize.\n", data->filename);
+  uv_fs_stat(uv_default_loop(), &data->read_req, data->filename, dev_fs_stat_cb);
 }
 
 void dev_fs_read_cb(uv_fs_t* req) {
