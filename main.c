@@ -11,7 +11,7 @@ void on_close_cb(uv_handle_t* client) {
   free(client);
 }
 
-void on_write_cb(uv_write_t* req, int status) {
+void on_write_complete_cb(uv_write_t* req, int status) {
   // uv_close((uv_handle_t*)req->handle, on_close_cb);
   free(req->data);
   free(req);
@@ -27,7 +27,7 @@ void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
     uv_write_t* write_req = malloc(sizeof(uv_write_t));
     write_req->data       = (void*)buf->base;
 
-    uv_write(write_req, client, buf, 1, on_write_cb);
+    uv_write(write_req, client, buf, 1, on_write_complete_cb);
   }
 
   if (nread < 0 || nread == UV_EOF) {
