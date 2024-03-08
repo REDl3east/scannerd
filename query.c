@@ -105,66 +105,68 @@ void dev_input_scan(int meta) {
     device_count++;
   }
 
-  int col1_max = 0;
-  int col2_max = 0;
+  if (device_count > 0) {
+    int col1_max = 0;
+    int col2_max = 0;
 
-  for (int i = 0; i < device_count; i++) {
-    int path_len = strlen(devices[i].path);
-    if (path_len > col1_max) col1_max = path_len;
+    for (int i = 0; i < device_count; i++) {
+      int path_len = strlen(devices[i].path);
+      if (path_len > col1_max) col1_max = path_len;
 
-    int name_len = strlen(devices[i].name);
-    if (name_len > col2_max) col2_max = name_len;
-  }
+      int name_len = strlen(devices[i].name);
+      if (name_len > col2_max) col2_max = name_len;
+    }
 
-  int spacing = 4;
+    int spacing = 4;
 
-  const char* path_lbl = "Path:";
-  int path_lbl_len     = strlen(path_lbl);
-  if (path_lbl_len > col1_max) col1_max = path_lbl_len;
+    const char* path_lbl = "Path:";
+    int path_lbl_len     = strlen(path_lbl);
+    if (path_lbl_len > col1_max) col1_max = path_lbl_len;
 
-  const char* name_lbl = "Name:";
-  int name_lbl_len     = strlen(name_lbl);
-  if (name_lbl_len > col2_max) col2_max = name_lbl_len;
+    const char* name_lbl = "Name:";
+    int name_lbl_len     = strlen(name_lbl);
+    if (name_lbl_len > col2_max) col2_max = name_lbl_len;
 
-  const char* meta_lbl = "Bus Type:    Product:    Vendor:    ID Version:";
-  int meta_lbl_len     = strlen(meta_lbl);
+    const char* meta_lbl = "Bus Type:    Product:    Vendor:    ID Version:";
+    int meta_lbl_len     = strlen(meta_lbl);
 
-  printf("%s", path_lbl);
-  for (int i = 0; i < col1_max - path_lbl_len + spacing; i++) {
-    printf(" ");
-  }
-  printf("%s", name_lbl);
-  for (int i = 0; i < col2_max - name_lbl_len + spacing; i++) {
-    printf(" ");
-  }
-
-  if (!meta) {
-    printf("\n");
-  } else {
-    printf("%s\n", meta_lbl);
-  }
-
-  for (int i = 0; i < device_count; i++) {
-    int path_len = strlen(devices[i].path);
-    int name_len = strlen(devices[i].name);
-
-    printf("%s", devices[i].path);
-    for (int i = 0; i < col1_max - path_len + spacing; i++)
+    printf("%s", path_lbl);
+    for (int i = 0; i < col1_max - path_lbl_len + spacing; i++) {
       printf(" ");
-    printf("%s", devices[i].name);
+    }
+    printf("%s", name_lbl);
+    for (int i = 0; i < col2_max - name_lbl_len + spacing; i++) {
+      printf(" ");
+    }
 
     if (!meta) {
       printf("\n");
-      continue;
+    } else {
+      printf("%s\n", meta_lbl);
     }
 
-    for (int i = 0; i < col2_max - name_len + spacing; i++)
-      printf(" ");
+    for (int i = 0; i < device_count; i++) {
+      int path_len = strlen(devices[i].path);
+      int name_len = strlen(devices[i].name);
 
-    printf("0x%.4x       ", devices[i].ids.bustype);
-    printf("0x%.4x      ", devices[i].ids.product);
-    printf("0x%.4x     ", devices[i].ids.vendor);
-    printf("0x%.4x\n", devices[i].ids.version);
+      printf("%s", devices[i].path);
+      for (int i = 0; i < col1_max - path_len + spacing; i++)
+        printf(" ");
+      printf("%s", devices[i].name);
+
+      if (!meta) {
+        printf("\n");
+        continue;
+      }
+
+      for (int i = 0; i < col2_max - name_len + spacing; i++)
+        printf(" ");
+
+      printf("0x%.4x       ", devices[i].ids.bustype);
+      printf("0x%.4x      ", devices[i].ids.product);
+      printf("0x%.4x     ", devices[i].ids.vendor);
+      printf("0x%.4x\n", devices[i].ids.version);
+    }
   }
 
   free(devices);
