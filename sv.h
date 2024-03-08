@@ -550,7 +550,7 @@ int sv_parse_float(string_view sv, float* value) {
   }
 
   if (sv_front(sv) == '+') {
-    sv       = sv_remove_prefix(sv, 1);
+    sv = sv_remove_prefix(sv, 1);
     if (sv_is_empty(sv)) return 0;
   }
 

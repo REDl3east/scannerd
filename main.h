@@ -3,21 +3,15 @@
 
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "argtable3.h"
-#include "uv.h"
 #include "evdev.h"
-
-#define SV_IMPLEMENTATION
+#include "query.h"
 #include "sv.h"
-
-
-
-
-
-
+#include "uv.h"
 
 typedef struct req_data_t {
   int initalized;
