@@ -1,8 +1,8 @@
 #include "query.h"
-#include "sv.h"
 
 #include "argtable3.h"
 #include "evdev.h"
+#include "sv.h"
 
 #include <dirent.h>
 #include <stdlib.h>
