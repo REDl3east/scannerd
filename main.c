@@ -13,6 +13,78 @@ int run_query_subcommand(const char* prog, const char* subcommand, int argc, cha
 }
 
 int run_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
+  arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
+  arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
+  arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
+  arg_end_t* end   = arg_end(20);
+  void* argtable[] = {dev, help, vers, end};
+
+  if (arg_nullcheck(argtable) != 0) {
+    fprintf(stderr, "%s: insufficient memory\n", argv[0]);
+    return 1;
+  }
+
+  int nerrors = arg_parse(argc, argv, argtable);
+
+  if (help->count > 0) {
+    printf("Usage: %s", argv[0]);
+    arg_print_syntax(stdout, argtable, "\n");
+    arg_print_glossary(stdout, argtable, "  %-10s %s\n");
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 0;
+  }
+
+  if (vers->count > 0) {
+    printf("March 2024, Dalton Overmyer\n");
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 0;
+  }
+
+  if (nerrors > 0) {
+    arg_print_errors(stderr, end, argv[0]);
+    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 1;
+  }
+
+  uv_signal_t sig;
+  uv_signal_init(uv_default_loop(), &sig);
+  uv_signal_start(&sig, dev_signal_cb, SIGINT);
+
+  req_data_t req_data;
+  strncpy(req_data.filename, dev->filename[0], 4096);
+  req_data.initalized = 0;
+
+  req_data.read_req.data = &req_data;
+  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
+
+  req_data.poll_req.data = &req_data;
+  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
+  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
+
+  uv_fs_t unlink_req;
+  uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
+  if (unlink_req.result < 0) {
+    printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
+  }
+  uv_fs_req_cleanup(&unlink_req);
+
+  uv_pipe_t pipe;
+  uv_pipe_init(uv_default_loop(), &pipe, 0);
+  uv_pipe_bind(&pipe, SOCK_FILE);
+  uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
+
+  // uv_fs_event_t dev_input_fs_event;
+  // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
+  // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  uv_loop_close(uv_default_loop());
+  arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+
+  printf("INFO: Exiting...");
+
   return 0;
 }
 
@@ -61,80 +133,6 @@ int main(int argc, char** argv) {
   const char* subcommand = argv[1];
 
   return run_subcommand(prog, subcommand, --argc, ++argv, type);
-
-  // arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
-  // arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
-  // arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
-  // arg_end_t* end   = arg_end(20);
-  // void* argtable[] = {dev, help, vers, end};
-
-  // if (arg_nullcheck(argtable) != 0) {
-  //   fprintf(stderr, "%s: insufficient memory\n", argv[0]);
-  //   return 1;
-  // }
-
-  // int nerrors = arg_parse(argc, argv, argtable);
-
-  // if (help->count > 0) {
-  //   printf("Usage: %s", argv[0]);
-  //   arg_print_syntax(stdout, argtable, "\n");
-  //   arg_print_glossary(stdout, argtable, "  %-10s %s\n");
-  //   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-  //   return 0;
-  // }
-
-  // if (vers->count > 0) {
-  //   printf("March 2024, Dalton Overmyer\n");
-  //   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-  //   return 0;
-  // }
-
-  // if (nerrors > 0) {
-  //   arg_print_errors(stderr, end, argv[0]);
-  //   fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-  //   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-  //   return 1;
-  // }
-
-  // uv_signal_t sig;
-  // uv_signal_init(uv_default_loop(), &sig);
-  // uv_signal_start(&sig, dev_signal_cb, SIGINT);
-
-  // req_data_t req_data;
-  // strncpy(req_data.filename, dev->filename[0], 4096);
-  // req_data.initalized = 0;
-
-  // req_data.read_req.data = &req_data;
-  // uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
-
-  // req_data.poll_req.data = &req_data;
-  // uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
-  // uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
-
-  // uv_fs_t unlink_req;
-  // uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
-  // if (unlink_req.result < 0) {
-  //   printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
-  // }
-  // uv_fs_req_cleanup(&unlink_req);
-
-  // uv_pipe_t pipe;
-  // uv_pipe_init(uv_default_loop(), &pipe, 0);
-  // uv_pipe_bind(&pipe, SOCK_FILE);
-  // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
-
-  // // uv_fs_event_t dev_input_fs_event;
-  // // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
-  // // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
-
-  // uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-  // uv_loop_close(uv_default_loop());
-  // arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-
-  // printf("INFO: Exiting...");
-
-  // return 0;
 }
 
 void dev_signal_cb(uv_signal_t* handle, int signum) {
@@ -314,9 +312,48 @@ int dev_input_query(dev_input_t* dev, const char* filename) {
   return 1;
 }
 
+int dev_input_compare(const struct dirent** d1, const struct dirent** d2) {
+  string_view d1_sv = sv_create_from_cstr((*d1)->d_name);
+  string_view d2_sv = sv_create_from_cstr((*d2)->d_name);
+
+  if (sv_starts_with(d1_sv, svl("event")) && sv_starts_with(d2_sv, svl("event"))) {
+    sv_index_t i1 = sv_find_last_not_of(d1_sv, svl("0123456789"), SV_NPOS);
+    sv_index_t i2 = sv_find_last_not_of(d2_sv, svl("0123456789"), SV_NPOS);
+
+    if (i1 != SV_NPOS && i2 != SV_NPOS) {
+      string_view num1_sv = sv_substr(d1_sv, i1+1, SV_NPOS);
+      string_view num2_sv = sv_substr(d2_sv, i2+1, SV_NPOS);
+      
+      int num1 = -1;
+      int num2 = -1;
+
+      sv_parse_int(num1_sv, &num1);
+      sv_parse_int(num2_sv, &num2);
+
+      return num1 < num2;
+    } else if (i1 != SV_NPOS && i2 == SV_NPOS) {
+      return 1;
+    } else if (i1 == SV_NPOS && i2 != SV_NPOS) {
+      return -1;
+    } else {
+      return strcoll((*d1)->d_name, (*d2)->d_name);
+    }
+
+    return 0;
+  } else if (sv_starts_with(d1_sv, svl("event")) && !sv_starts_with(d2_sv, svl("event"))) {
+    return 1;
+  } else if (!sv_starts_with(d1_sv, svl("event")) && sv_starts_with(d2_sv, svl("event"))) {
+    return -1;
+  } else {
+    return strcoll((*d1)->d_name, (*d2)->d_name);
+  }
+
+  return 0;
+}
+
 void dev_input_scan() {
   struct dirent** namelist;
-  int n = scandir(DEV_INPUT_PATH, &namelist, NULL, NULL);
+  int n = scandir(DEV_INPUT_PATH, &namelist, NULL, dev_input_compare);
   if (n == -1) return;
 
   while (n--) {
@@ -341,59 +378,59 @@ void dev_input_scan() {
       continue;
     }
 
-    printf("path:             " DEV_INPUT_PATH "event%d\n", device);
-    printf("name:             %s\n", dev.name);
-    printf("driver version:   %d.%d.%d\n", dev.driver_version >> 16, (dev.driver_version >> 8) & 0xff, dev.driver_version & 0xff);
-    printf("id bus type:      %d\n", dev.ids.bustype);
-    printf("id product:       %d\n", dev.ids.product);
-    printf("id vendor:        %d\n", dev.ids.vendor);
-    printf("id version:       %d\n", dev.ids.version);
+    printf("" DEV_INPUT_PATH "event%d\t", device);
+    printf("%s\n", dev.name);
+    // printf("driver version:   %d.%d.%d\n", dev.driver_version >> 16, (dev.driver_version >> 8) & 0xff, dev.driver_version & 0xff);
+    // printf("id bus type:      %d\n", dev.ids.bustype);
+    // printf("id product:       %d\n", dev.ids.product);
+    // printf("id vendor:        %d\n", dev.ids.vendor);
+    // printf("id version:       %d\n", dev.ids.version);
 
-    printf("supported events: ");
-    for (int i = 0; i < EV_CNT; i++) {
-      if (bit_is_set(dev.bits, i)) {
-        switch (i) {
-          case EV_SYN:
-            printf("EV_SYN ");
-            break;
-          case EV_KEY:
-            printf("EV_KEY ");
-            break;
-          case EV_REL:
-            printf("EV_REL ");
-            break;
-          case EV_ABS:
-            printf("EV_ABS ");
-            break;
-          case EV_MSC:
-            printf("EV_MSC ");
-            break;
-          case EV_SW:
-            printf("EV_SW ");
-            break;
-          case EV_LED:
-            printf("EV_LED ");
-            break;
-          case EV_SND:
-            printf("EV_SND ");
-            break;
-          case EV_REP:
-            printf("EV_REP ");
-            break;
-          case EV_FF:
-            printf("EV_FF ");
-            break;
-          case EV_PWR:
-            printf("EV_PWR ");
-            break;
-          case EV_FF_STATUS:
-            printf("EV_FF_STATUS ");
-            break;
-        }
-      }
-    }
-    printf("\n");
-    printf("\n");
+    // printf("supported events: ");
+    // for (int i = 0; i < EV_CNT; i++) {
+    //   if (bit_is_set(dev.bits, i)) {
+    //     switch (i) {
+    //       case EV_SYN:
+    //         printf("EV_SYN ");
+    //         break;
+    //       case EV_KEY:
+    //         printf("EV_KEY ");
+    //         break;
+    //       case EV_REL:
+    //         printf("EV_REL ");
+    //         break;
+    //       case EV_ABS:
+    //         printf("EV_ABS ");
+    //         break;
+    //       case EV_MSC:
+    //         printf("EV_MSC ");
+    //         break;
+    //       case EV_SW:
+    //         printf("EV_SW ");
+    //         break;
+    //       case EV_LED:
+    //         printf("EV_LED ");
+    //         break;
+    //       case EV_SND:
+    //         printf("EV_SND ");
+    //         break;
+    //       case EV_REP:
+    //         printf("EV_REP ");
+    //         break;
+    //       case EV_FF:
+    //         printf("EV_FF ");
+    //         break;
+    //       case EV_PWR:
+    //         printf("EV_PWR ");
+    //         break;
+    //       case EV_FF_STATUS:
+    //         printf("EV_FF_STATUS ");
+    //         break;
+    //     }
+    //   }
+    // }
+    // printf("\n");
+    // printf("\n");
     free(namelist[n]);
   }
 
