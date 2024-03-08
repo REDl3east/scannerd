@@ -1,56 +1,67 @@
 #include "main.h"
 
-#define SOCK_FILE "/run/scannerd.sock"
+typedef enum subcommand_type {
+  SUBCOMMAND_NONE,
+  SUBCOMMAND_QUERY,
+  SUBCOMMAND_RUN,
+  SUBCOMMAND_HELP,
+} subcommand_type;
 
-void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-  buf->base = malloc(suggested_size);
-  buf->len  = suggested_size;
+int run_query_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
+  dev_input_scan();
+  return 0;
 }
 
-void on_close_cb(uv_handle_t* client) {
-  free(client);
+int run_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
+  return 0;
 }
 
-void on_write_complete_cb(uv_write_t* req, int status) {
-  // uv_close((uv_handle_t*)req->handle, on_close_cb);
-  free(req->data);
-  free(req);
+int run_help_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
+  printf("Usage:\n");
+  printf("   %s query\n", prog);
+  printf("   %s run\n", prog);
+  printf("   %s (-h | --help)\n", prog);
+
+  return 0;
 }
 
-// Each buffer is used only once and the user is responsible for freeing it in the uv_udp_recv_cb or the uv_read_cb callback.
-// We do it in the write complete callback :)
-void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-  if (nread > 0) {
-    printf("read: ");
-    printf("%.*s", (int)buf->len, buf->base);
-
-    uv_write_t* write_req = malloc(sizeof(uv_write_t));
-    write_req->data       = (void*)buf->base;
-
-    uv_write(write_req, client, buf, 1, on_write_complete_cb);
+int run_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type) {
+  switch (type) {
+    case SUBCOMMAND_QUERY:
+      return run_query_subcommand(prog, subcommand, argc, argv);
+    case SUBCOMMAND_RUN:
+      return run_run_subcommand(prog, subcommand, argc, argv);
+    case SUBCOMMAND_HELP:
+      return run_help_subcommand(prog, subcommand, argc, argv);
+    default: {
+      fprintf(stderr, "%s: Expected (query | run | -h | --help) subcommand, got '%s'\n", prog, subcommand);
+      return 1;
+    }
   }
 
-  if (nread < 0 || nread == UV_EOF) {
-    printf("disconnected\n");
-    uv_close((uv_handle_t*)client, on_close_cb);
-    return;
-  }
-}
-
-void on_connect_cb(uv_stream_t* stream, int status) {
-  uv_pipe_t* client = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
-  uv_pipe_init(stream->loop, client, 0);
-  int r = uv_accept(stream, (uv_stream_t*)client);
-
-  if (r < 0) {
-    // error
-  }
-
-  uv_read_start((uv_stream_t*)client, my_alloc_cb, on_read_cb);
-  printf("connected...\n");
+  return 1;
 }
 
 int main(int argc, char** argv) {
+  if (argc < 2) {
+    fprintf(stderr, "%s: Expected (query | run | -h | --help) subcommand, got EOF.\n", argv[0]);
+    return 1;
+  }
+
+  subcommand_type type = SUBCOMMAND_NONE;
+  if (strcmp(argv[1], "query") == 0) {
+    type = SUBCOMMAND_QUERY;
+  } else if (strcmp(argv[1], "run") == 0) {
+    type = SUBCOMMAND_RUN;
+  } else if (strcmp(argv[1], "--h") == 0 || strcmp(argv[1], "--help") == 0) {
+    type = SUBCOMMAND_HELP;
+  }
+
+  const char* prog = argv[0];
+  const char* subcommand = argv[1];
+
+  return run_subcommand(prog, subcommand, --argc, ++argv, type);
+
   arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
   arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
   arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
@@ -177,7 +188,7 @@ void dev_fs_read_cb(uv_fs_t* req) {
   if (data->ev.type == EV_KEY) {
     if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL) {
       // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
-      // printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
+      printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
     }
   }
 
@@ -382,4 +393,54 @@ void dev_input_scan() {
 
 static inline int bit_is_set(const unsigned long* array, int bit) {
   return !!(array[bit / LONG_BITS] & (1LL << (bit % LONG_BITS)));
+}
+
+// sock stuff
+
+void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+  buf->base = malloc(suggested_size);
+  buf->len  = suggested_size;
+}
+
+void on_close_cb(uv_handle_t* client) {
+  free(client);
+}
+
+void on_write_complete_cb(uv_write_t* req, int status) {
+  // uv_close((uv_handle_t*)req->handle, on_close_cb);
+  free(req->data);
+  free(req);
+}
+
+// Each buffer is used only once and the user is responsible for freeing it in the uv_udp_recv_cb or the uv_read_cb callback.
+// We do it in the write complete callback :)
+void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
+  if (nread > 0) {
+    printf("read: ");
+    printf("%.*s", (int)buf->len, buf->base);
+
+    uv_write_t* write_req = malloc(sizeof(uv_write_t));
+    write_req->data       = (void*)buf->base;
+
+    uv_write(write_req, client, buf, 1, on_write_complete_cb);
+  }
+
+  if (nread < 0 || nread == UV_EOF) {
+    printf("disconnected\n");
+    uv_close((uv_handle_t*)client, on_close_cb);
+    return;
+  }
+}
+
+void on_connect_cb(uv_stream_t* stream, int status) {
+  uv_pipe_t* client = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
+  uv_pipe_init(stream->loop, client, 0);
+  int r = uv_accept(stream, (uv_stream_t*)client);
+
+  if (r < 0) {
+    // error
+  }
+
+  uv_read_start((uv_stream_t*)client, my_alloc_cb, on_read_cb);
+  printf("connected...\n");
 }

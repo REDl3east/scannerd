@@ -137,4 +137,13 @@ void dev_fs_stat_cb(uv_fs_t* req);
 int dev_input_query(dev_input_t* dev, const char* filename);
 void dev_input_scan();
 
+// sock stuff
+#define SOCK_FILE "/run/scannerd.sock"
+
+void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
+void on_close_cb(uv_handle_t* client);
+void on_write_complete_cb(uv_write_t* req, int status);
+void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf);
+void on_connect_cb(uv_stream_t* stream, int status);
+
 #endif // _MAIN_H_
