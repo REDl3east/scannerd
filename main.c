@@ -5,7 +5,7 @@
 
 #include <string.h>
 
-int run_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type);
+int do_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type);
 
 int main(int argc, char** argv) {
   if (argc < 2) {
@@ -25,10 +25,10 @@ int main(int argc, char** argv) {
   const char* prog       = argv[0];
   const char* subcommand = argv[1];
 
-  return run_subcommand(prog, subcommand, --argc, ++argv, type);
+  return do_subcommand(prog, subcommand, --argc, ++argv, type);
 }
 
-int do_help_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
+int run_help_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
   printf("Usage:\n");
   printf("   %s query\n", prog);
   printf("   %s run\n", prog);
@@ -37,14 +37,14 @@ int do_help_subcommand(const char* prog, const char* subcommand, int argc, char*
   return 0;
 }
 
-int run_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type) {
+int do_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type) {
   switch (type) {
     case SUBCOMMAND_QUERY:
       return do_query_subcommand(prog, subcommand, argc, argv);
     case SUBCOMMAND_RUN:
       return do_run_subcommand(prog, subcommand, argc, argv);
     case SUBCOMMAND_HELP:
-      return do_help_subcommand(prog, subcommand, argc, argv);
+      return run_help_subcommand(prog, subcommand, argc, argv);
     default: {
       fprintf(stderr, "%s: Expected (query | run | -h | --help) subcommand, got '%s'\n", prog, subcommand);
       return 1;
