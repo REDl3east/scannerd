@@ -8,6 +8,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 set(MAIN_SRC
   ${CMAKE_CURRENT_SOURCE_DIR}/main.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/evdev.c
 )
 
 add_executable(scannerd ${MAIN_SRC})

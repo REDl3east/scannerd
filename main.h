@@ -2,44 +2,22 @@
 #define _MAIN_H_
 
 #include <dirent.h>
-#include <linux/input.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
 #include "argtable3.h"
 #include "uv.h"
+#include "evdev.h"
 
 #define SV_IMPLEMENTATION
 #include "sv.h"
 
-#define DEV_INPUT_PATH       "/dev/input/"
-#define DEV_INPUT_PATH_LEN   sizeof(DEV_INPUT_PATH) - 1
-#define MAX_DEV_INPUT_PATH   255
-#define MAX_DEV_INPUT_EVENTS 20
 
-#define KEY_RELEASE 0
-#define KEY_PRESS   1
-#define KEY_HOLD    2
 
-// bits and pieces taken from https://gitlab.freedesktop.org/libevdev/libevdev
 
-static inline int bit_is_set(const unsigned long* array, int bit);
 
-#define LONG_BITS (sizeof(long) * 8)
-#define NLONGS(x) (((x) + LONG_BITS - 1) / LONG_BITS)
 
-typedef struct dev_input {
-  char path[256];
-  char name[256];
-  char phys[256];
-  char uniq[256];
-  struct input_id ids;
-  int driver_version;
-  unsigned long bits[NLONGS(EV_CNT)];
-  unsigned long key_bits[NLONGS(KEY_CNT)];
-  unsigned long key_values[NLONGS(KEY_CNT)];
-} dev_input_t;
 
 typedef struct req_data_t {
   int initalized;
