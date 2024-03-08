@@ -30,6 +30,7 @@ static inline int bit_is_set(const unsigned long* array, int bit);
 #define NLONGS(x) (((x) + LONG_BITS - 1) / LONG_BITS)
 
 typedef struct dev_input {
+  char path[256];
   char name[256];
   char phys[256];
   char uniq[256];

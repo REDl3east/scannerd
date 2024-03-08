@@ -8,7 +8,41 @@ typedef enum subcommand_type {
 } subcommand_type;
 
 int run_query_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
-  dev_input_scan();
+  arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
+  arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
+  arg_lit_t* meta  = arg_lit0("m", "meta", "Include ID bus type, product, vendor, and version.");
+  arg_end_t* end   = arg_end(20);
+  void* argtable[] = {help, vers, meta, end};
+
+  if (arg_nullcheck(argtable) != 0) {
+    fprintf(stderr, "%s: insufficient memory\n", argv[0]);
+    return 1;
+  }
+
+  int nerrors = arg_parse(argc, argv, argtable);
+
+  if (help->count > 0) {
+    printf("Usage: %s %s", prog, subcommand);
+    arg_print_syntax(stdout, argtable, "\n");
+    arg_print_glossary(stdout, argtable, "  %-10s %s\n");
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 0;
+  }
+
+  if (vers->count > 0) {
+    printf("March 2024, Dalton Overmyer\n");
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 0;
+  }
+
+  if (nerrors > 0) {
+    arg_print_errors(stderr, end, argv[0]);
+    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+    return 1;
+  }
+
+  dev_input_scan(meta->count);
   return 0;
 }
 
@@ -308,6 +342,8 @@ int dev_input_query(dev_input_t* dev, const char* filename) {
     return 0;
   }
 
+  strncpy(dev->path, filename, MAX_DEV_INPUT_PATH);
+
   close(fd);
   return 1;
 }
@@ -327,7 +363,7 @@ static int dev_input_compare(const struct dirent** d1, const struct dirent** d2)
       sv_parse_int(sv_substr(d1_sv, i1 + 1, SV_NPOS), &num1);
       sv_parse_int(sv_substr(d2_sv, i2 + 1, SV_NPOS), &num2);
 
-      return num1 < num2;
+      return num1 > num2;
     } else if (i1 != SV_NPOS && i2 == SV_NPOS) {
       return 1;
     } else if (i1 == SV_NPOS && i2 != SV_NPOS) {
@@ -342,89 +378,96 @@ static int dev_input_compare(const struct dirent** d1, const struct dirent** d2)
   return strcoll((*d1)->d_name, (*d2)->d_name);
 }
 
-void dev_input_scan() {
+void dev_input_scan(int meta) {
   struct dirent** namelist;
   int n = scandir(DEV_INPUT_PATH, &namelist, NULL, dev_input_compare);
   if (n == -1) return;
 
-  while (n--) {
-    string_view filename_sv = sv_create_from_cstr(namelist[n]->d_name);
+  dev_input_t* devices = malloc(n * sizeof(dev_input_t));
+  int device_count     = 0;
+
+  for (int i = 0; i < n; i++) {
+    string_view filename_sv = sv_create_from_cstr(namelist[i]->d_name);
     int device;
-    if (!sv_starts_with(filename_sv, svl("event"))) {
-      free(namelist[n]);
-      continue;
-    }
+    if (!sv_starts_with(filename_sv, svl("event"))) continue;
+
     filename_sv = sv_remove_prefix(filename_sv, 5);
-    if (!sv_parse_int(filename_sv, &device)) {
-      free(namelist[n]);
-      continue;
-    }
+    if (!sv_parse_int(filename_sv, &device)) continue;
 
     char path[MAX_DEV_INPUT_PATH];
     snprintf(path, MAX_DEV_INPUT_PATH, "%sevent%d", DEV_INPUT_PATH, device);
 
-    dev_input_t dev;
-    if (!dev_input_query(&dev, path)) {
-      free(namelist[n]);
+    dev_input_t* dev = devices + device_count;
+    if (!dev_input_query(dev, path)) continue;
+    // if (!bit_is_set(dev->bits, EV_KEY)) continue;
+    device_count++;
+  }
+
+  int col1_max = 0;
+  int col2_max = 0;
+
+  for (int i = 0; i < device_count; i++) {
+    int path_len = strlen(devices[i].path);
+    if (path_len > col1_max) col1_max = path_len;
+
+    int name_len = strlen(devices[i].name);
+    if (name_len > col2_max) col2_max = name_len;
+  }
+
+  int spacing = 4;
+
+  const char* path_lbl = "Path:";
+  int path_lbl_len     = strlen(path_lbl);
+  if (path_lbl_len > col1_max) col1_max = path_lbl_len;
+
+  const char* name_lbl = "Name:";
+  int name_lbl_len     = strlen(name_lbl);
+  if (name_lbl_len > col2_max) col2_max = name_lbl_len;
+
+  const char* meta_lbl = "Bus Type:    Product:    Vendor:    ID Version:";
+  int meta_lbl_len     = strlen(meta_lbl);
+
+  printf("%s", path_lbl);
+  for (int i = 0; i < col1_max - path_lbl_len + spacing; i++) {
+    printf(" ");
+  }
+  printf("%s", name_lbl);
+  for (int i = 0; i < col2_max - name_lbl_len + spacing; i++) {
+    printf(" ");
+  }
+
+  if (!meta) {
+    printf("\n");
+  } else {
+    printf("%s\n", meta_lbl);
+  }
+
+  for (int i = 0; i < device_count; i++) {
+    int path_len = strlen(devices[i].path);
+    int name_len = strlen(devices[i].name);
+
+    printf("%s", devices[i].path);
+    for (int i = 0; i < col1_max - path_len + spacing; i++)
+      printf(" ");
+    printf("%s", devices[i].name);
+
+    if (!meta) {
+      printf("\n");
       continue;
     }
 
-    printf("" DEV_INPUT_PATH "event%d\t", device);
-    printf("%s\n", dev.name);
-    // printf("driver version:   %d.%d.%d\n", dev.driver_version >> 16, (dev.driver_version >> 8) & 0xff, dev.driver_version & 0xff);
-    // printf("id bus type:      %d\n", dev.ids.bustype);
-    // printf("id product:       %d\n", dev.ids.product);
-    // printf("id vendor:        %d\n", dev.ids.vendor);
-    // printf("id version:       %d\n", dev.ids.version);
+    for (int i = 0; i < col2_max - name_len + spacing; i++)
+      printf(" ");
 
-    // printf("supported events: ");
-    // for (int i = 0; i < EV_CNT; i++) {
-    //   if (bit_is_set(dev.bits, i)) {
-    //     switch (i) {
-    //       case EV_SYN:
-    //         printf("EV_SYN ");
-    //         break;
-    //       case EV_KEY:
-    //         printf("EV_KEY ");
-    //         break;
-    //       case EV_REL:
-    //         printf("EV_REL ");
-    //         break;
-    //       case EV_ABS:
-    //         printf("EV_ABS ");
-    //         break;
-    //       case EV_MSC:
-    //         printf("EV_MSC ");
-    //         break;
-    //       case EV_SW:
-    //         printf("EV_SW ");
-    //         break;
-    //       case EV_LED:
-    //         printf("EV_LED ");
-    //         break;
-    //       case EV_SND:
-    //         printf("EV_SND ");
-    //         break;
-    //       case EV_REP:
-    //         printf("EV_REP ");
-    //         break;
-    //       case EV_FF:
-    //         printf("EV_FF ");
-    //         break;
-    //       case EV_PWR:
-    //         printf("EV_PWR ");
-    //         break;
-    //       case EV_FF_STATUS:
-    //         printf("EV_FF_STATUS ");
-    //         break;
-    //     }
-    //   }
-    // }
-    // printf("\n");
-    // printf("\n");
-    free(namelist[n]);
+    printf("0x%.4x       ", devices[i].ids.bustype);
+    printf("0x%.4x      ", devices[i].ids.product);
+    printf("0x%.4x     ", devices[i].ids.vendor);
+    printf("0x%.4x\n", devices[i].ids.version);
   }
 
+  free(devices);
+  for (int i = 0; i < n; i++)
+    free(namelist[i]);
   free(namelist);
 
   return;
