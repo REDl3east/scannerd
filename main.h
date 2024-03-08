@@ -1,6 +1,7 @@
 #ifndef _MAIN_H_
 #define _MAIN_H_
 
+#include <dirent.h>
 #include <linux/input.h>
 #include <stdio.h>
 #include <string.h>

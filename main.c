@@ -57,84 +57,84 @@ int main(int argc, char** argv) {
     type = SUBCOMMAND_HELP;
   }
 
-  const char* prog = argv[0];
+  const char* prog       = argv[0];
   const char* subcommand = argv[1];
 
   return run_subcommand(prog, subcommand, --argc, ++argv, type);
 
-  arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
-  arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
-  arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
-  arg_end_t* end   = arg_end(20);
-  void* argtable[] = {dev, help, vers, end};
+  // arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
+  // arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
+  // arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
+  // arg_end_t* end   = arg_end(20);
+  // void* argtable[] = {dev, help, vers, end};
 
-  if (arg_nullcheck(argtable) != 0) {
-    fprintf(stderr, "%s: insufficient memory\n", argv[0]);
-    return 1;
-  }
+  // if (arg_nullcheck(argtable) != 0) {
+  //   fprintf(stderr, "%s: insufficient memory\n", argv[0]);
+  //   return 1;
+  // }
 
-  int nerrors = arg_parse(argc, argv, argtable);
+  // int nerrors = arg_parse(argc, argv, argtable);
 
-  if (help->count > 0) {
-    printf("Usage: %s", argv[0]);
-    arg_print_syntax(stdout, argtable, "\n");
-    arg_print_glossary(stdout, argtable, "  %-10s %s\n");
-    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-    return 0;
-  }
+  // if (help->count > 0) {
+  //   printf("Usage: %s", argv[0]);
+  //   arg_print_syntax(stdout, argtable, "\n");
+  //   arg_print_glossary(stdout, argtable, "  %-10s %s\n");
+  //   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+  //   return 0;
+  // }
 
-  if (vers->count > 0) {
-    printf("March 2024, Dalton Overmyer\n");
-    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-    return 0;
-  }
+  // if (vers->count > 0) {
+  //   printf("March 2024, Dalton Overmyer\n");
+  //   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+  //   return 0;
+  // }
 
-  if (nerrors > 0) {
-    arg_print_errors(stderr, end, argv[0]);
-    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
-    arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-    return 1;
-  }
+  // if (nerrors > 0) {
+  //   arg_print_errors(stderr, end, argv[0]);
+  //   fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+  //   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+  //   return 1;
+  // }
 
-  uv_signal_t sig;
-  uv_signal_init(uv_default_loop(), &sig);
-  uv_signal_start(&sig, dev_signal_cb, SIGINT);
+  // uv_signal_t sig;
+  // uv_signal_init(uv_default_loop(), &sig);
+  // uv_signal_start(&sig, dev_signal_cb, SIGINT);
 
-  req_data_t req_data;
-  strncpy(req_data.filename, dev->filename[0], 4096);
-  req_data.initalized = 0;
+  // req_data_t req_data;
+  // strncpy(req_data.filename, dev->filename[0], 4096);
+  // req_data.initalized = 0;
 
-  req_data.read_req.data = &req_data;
-  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
+  // req_data.read_req.data = &req_data;
+  // uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
 
-  req_data.poll_req.data = &req_data;
-  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
-  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
+  // req_data.poll_req.data = &req_data;
+  // uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
+  // uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
-  uv_fs_t unlink_req;
-  uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
-  if (unlink_req.result < 0) {
-    printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
-  }
-  uv_fs_req_cleanup(&unlink_req);
+  // uv_fs_t unlink_req;
+  // uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
+  // if (unlink_req.result < 0) {
+  //   printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
+  // }
+  // uv_fs_req_cleanup(&unlink_req);
 
-  uv_pipe_t pipe;
-  uv_pipe_init(uv_default_loop(), &pipe, 0);
-  uv_pipe_bind(&pipe, SOCK_FILE);
-  uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
+  // uv_pipe_t pipe;
+  // uv_pipe_init(uv_default_loop(), &pipe, 0);
+  // uv_pipe_bind(&pipe, SOCK_FILE);
+  // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
 
-  // uv_fs_event_t dev_input_fs_event;
-  // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
-  // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
+  // // uv_fs_event_t dev_input_fs_event;
+  // // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
+  // // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
 
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  // uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  uv_loop_close(uv_default_loop());
-  arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+  // uv_loop_close(uv_default_loop());
+  // arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
 
-  printf("INFO: Exiting...");
+  // printf("INFO: Exiting...");
 
-  return 0;
+  // return 0;
 }
 
 void dev_signal_cb(uv_signal_t* handle, int signum) {
@@ -315,22 +315,31 @@ int dev_input_query(dev_input_t* dev, const char* filename) {
 }
 
 void dev_input_scan() {
-  uv_fs_t fs_dir_req;
-  if (!uv_fs_scandir(uv_default_loop(), &fs_dir_req, DEV_INPUT_PATH, 0, NULL)) return;
+  struct dirent** namelist;
+  int n = scandir(DEV_INPUT_PATH, &namelist, NULL, NULL);
+  if (n == -1) return;
 
-  uv_dirent_t ent;
-  while (uv_fs_scandir_next(&fs_dir_req, &ent) != UV_EOF) {
-    string_view filename_sv = sv_create_from_cstr(ent.name);
+  while (n--) {
+    string_view filename_sv = sv_create_from_cstr(namelist[n]->d_name);
     int device;
-    if (!sv_starts_with(filename_sv, svl("event"))) continue;
+    if (!sv_starts_with(filename_sv, svl("event"))) {
+      free(namelist[n]);
+      continue;
+    }
     filename_sv = sv_remove_prefix(filename_sv, 5);
-    if (!sv_parse_int(filename_sv, &device)) continue;
+    if (!sv_parse_int(filename_sv, &device)) {
+      free(namelist[n]);
+      continue;
+    }
 
     char path[MAX_DEV_INPUT_PATH];
     snprintf(path, MAX_DEV_INPUT_PATH, "%sevent%d", DEV_INPUT_PATH, device);
 
     dev_input_t dev;
-    if (!dev_input_query(&dev, path)) continue;
+    if (!dev_input_query(&dev, path)) {
+      free(namelist[n]);
+      continue;
+    }
 
     printf("path:             " DEV_INPUT_PATH "event%d\n", device);
     printf("name:             %s\n", dev.name);
@@ -384,11 +393,13 @@ void dev_input_scan() {
       }
     }
     printf("\n");
-
     printf("\n");
+    free(namelist[n]);
   }
 
-  uv_fs_req_cleanup(&fs_dir_req);
+  free(namelist);
+
+  return;
 }
 
 static inline int bit_is_set(const unsigned long* array, int bit) {
