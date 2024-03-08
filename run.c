@@ -38,7 +38,7 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
 
   if (nerrors > 0) {
     arg_print_errors(stderr, end, argv[0]);
-    fprintf(stderr, "Try '%s --help' for more information.\n", argv[0]);
+    fprintf(stderr, "Try '%s %s --help' for more information.\n", prog, subcommand);
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
     return 1;
   }
