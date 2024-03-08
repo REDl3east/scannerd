@@ -312,7 +312,7 @@ int dev_input_query(dev_input_t* dev, const char* filename) {
   return 1;
 }
 
-int dev_input_compare(const struct dirent** d1, const struct dirent** d2) {
+static int dev_input_compare(const struct dirent** d1, const struct dirent** d2) {
   string_view d1_sv = sv_create_from_cstr((*d1)->d_name);
   string_view d2_sv = sv_create_from_cstr((*d2)->d_name);
 
@@ -321,34 +321,25 @@ int dev_input_compare(const struct dirent** d1, const struct dirent** d2) {
     sv_index_t i2 = sv_find_last_not_of(d2_sv, svl("0123456789"), SV_NPOS);
 
     if (i1 != SV_NPOS && i2 != SV_NPOS) {
-      string_view num1_sv = sv_substr(d1_sv, i1+1, SV_NPOS);
-      string_view num2_sv = sv_substr(d2_sv, i2+1, SV_NPOS);
-      
       int num1 = -1;
       int num2 = -1;
 
-      sv_parse_int(num1_sv, &num1);
-      sv_parse_int(num2_sv, &num2);
+      sv_parse_int(sv_substr(d1_sv, i1 + 1, SV_NPOS), &num1);
+      sv_parse_int(sv_substr(d2_sv, i2 + 1, SV_NPOS), &num2);
 
       return num1 < num2;
     } else if (i1 != SV_NPOS && i2 == SV_NPOS) {
       return 1;
     } else if (i1 == SV_NPOS && i2 != SV_NPOS) {
       return -1;
-    } else {
-      return strcoll((*d1)->d_name, (*d2)->d_name);
     }
-
-    return 0;
   } else if (sv_starts_with(d1_sv, svl("event")) && !sv_starts_with(d2_sv, svl("event"))) {
     return 1;
   } else if (!sv_starts_with(d1_sv, svl("event")) && sv_starts_with(d2_sv, svl("event"))) {
     return -1;
-  } else {
-    return strcoll((*d1)->d_name, (*d2)->d_name);
   }
 
-  return 0;
+  return strcoll((*d1)->d_name, (*d2)->d_name);
 }
 
 void dev_input_scan() {
