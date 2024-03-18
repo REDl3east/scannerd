@@ -116,8 +116,10 @@ void dev_fs_read_cb(uv_fs_t* req) {
         data->lshift = 1;
       } else if (data->ev.code == KEY_RIGHTSHIFT) {
         data->rshift = 1;
-      } else if (data->ev.code == KEY_ENTER) {
-        printf("%.*s\n", data->input_buf_index, data->input_buf);
+      } else if (data->ev.code == KEY_ENTER || data->ev.code == KEY_KPENTER) {
+        if (data->input_buf_index != 0) {
+          printf("%s: %.*s\n", data->filename, data->input_buf_index, data->input_buf);
+        }
         data->input_buf_index = 0;
       } else {
         int shifted = data->lshift || data->rshift;

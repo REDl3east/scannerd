@@ -6,7 +6,7 @@
 
 #define SOCK_FILE "/run/scannerd.sock"
 
-#define INPUT_BUF_LENGTH 256
+#define INPUT_BUF_LENGTH 64
 
 typedef struct req_data_t {
   int initalized;
@@ -52,6 +52,16 @@ static char code_to_key[2][KEY_CNT] = {
         [KEY_7]          = '7',
         [KEY_8]          = '8',
         [KEY_9]          = '9',
+        [KEY_KP0]        = '0',
+        [KEY_KP1]        = '1',
+        [KEY_KP2]        = '2',
+        [KEY_KP3]        = '3',
+        [KEY_KP4]        = '4',
+        [KEY_KP5]        = '5',
+        [KEY_KP6]        = '6',
+        [KEY_KP7]        = '7',
+        [KEY_KP8]        = '8',
+        [KEY_KP9]        = '9',
         [KEY_A]          = 'a',
         [KEY_B]          = 'b',
         [KEY_C]          = 'c',
