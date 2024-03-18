@@ -3,7 +3,10 @@ project(scannerd VERSION 0.1.0 LANGUAGES C CXX)
 
 set(UV_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/libuv)
 set(ARGTABLE_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/argtable3)
+set(ASIO_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/asio)
+set(CROW_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/Crow)
 
+set(ASIO_INCLUDE_DIR ${ASIO_SRC_DIR}/asio/include)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 set(MAIN_SRC
@@ -17,5 +20,7 @@ set(MAIN_SRC
 add_executable(scannerd ${MAIN_SRC})
 target_link_libraries(scannerd PRIVATE uv_a)
 target_link_libraries(scannerd PRIVATE argtable3)
+target_include_directories(scannerd PRIVATE ${ASIO_INCLUDE_DIR})
 target_include_directories(scannerd PRIVATE ${ARGTABLE_SRC_DIR}/src)
 target_include_directories(scannerd PRIVATE ${UV_SRC_DIR}/include)
+target_include_directories(scannerd PRIVATE ${CROW_SRC_DIR}/include)

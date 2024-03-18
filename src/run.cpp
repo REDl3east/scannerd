@@ -1,6 +1,7 @@
 #include "run.h"
 
 #include "argtable3.h"
+#include "crow.h"
 #include "sv.h"
 #include "uv.h"
 
@@ -70,6 +71,17 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   // uv_pipe_init(uv_default_loop(), &pipe, 0);
   // uv_pipe_bind(&pipe, SOCK_FILE);
   // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
+
+  // crow::SimpleApp app;
+
+  // CROW_ROUTE(app, "/")
+  // ([]() {
+  //   return "Hello world";
+  // });
+
+  // app.signal_clear();
+
+  // auto f = app.port(18080).run_async();
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
