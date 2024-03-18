@@ -173,6 +173,7 @@ void dev_fs_open_cb(uv_fs_t* req) {
     return;
   }
 
+  memset(data, 0, sizeof(req_data_t));
   data->initalized  = 1;
   data->file_id     = req->result;
   data->ev_buf.base = (char*)&data->ev;
