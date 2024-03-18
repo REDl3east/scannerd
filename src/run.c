@@ -71,10 +71,6 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   // uv_pipe_bind(&pipe, SOCK_FILE);
   // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
 
-  // uv_fs_event_t dev_input_fs_event;
-  // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
-  // uv_fs_event_start(&dev_input_fs_event, dev_fs_dir_cb, DEV_INPUT_PATH, 0);
-
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
   uv_loop_close(uv_default_loop());
@@ -87,25 +83,6 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
 
 void dev_signal_cb(uv_signal_t* handle, int signum) {
   uv_stop(uv_default_loop());
-}
-
-void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int status) {
-  char path[MAX_DEV_INPUT_PATH - DEV_INPUT_PATH_LEN];
-  if (status != 0) return;
-  if (!(events & UV_RENAME)) return;
-
-  string_view filename_sv = sv_create_from_cstr(filename);
-
-  if (!sv_starts_with(filename_sv, svl("event"))) return;
-  filename_sv = sv_remove_prefix(filename_sv, 5);
-
-  int event_num;
-  if (!sv_parse_int(filename_sv, &event_num)) return;
-
-  memset(path, 0, MAX_DEV_INPUT_PATH - DEV_INPUT_PATH_LEN);
-  snprintf(path, MAX_DEV_INPUT_PATH - DEV_INPUT_PATH_LEN, "%s%s", DEV_INPUT_PATH, filename);
-
-  printf("[%d] %s\n", event_num, path);
 }
 
 void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr) {
