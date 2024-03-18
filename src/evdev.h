@@ -7,7 +7,7 @@
 
 #define DEV_INPUT_PATH       "/dev/input/"
 #define DEV_INPUT_PATH_LEN   sizeof(DEV_INPUT_PATH) - 1
-#define MAX_DEV_INPUT_PATH   255
+#define MAX_DEV_INPUT_PATH   256
 #define MAX_DEV_INPUT_EVENTS 20
 
 #define KEY_RELEASE 0

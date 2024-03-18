@@ -1,5 +1,7 @@
 include(FetchContent)
 
+set(LIBUV_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
   uv
   GIT_REPOSITORY https://github.com/libuv/libuv

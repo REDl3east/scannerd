@@ -15,6 +15,7 @@ set(MAIN_SRC
 )
 
 add_executable(scannerd ${MAIN_SRC})
-target_link_libraries(scannerd PRIVATE uv)
+target_link_libraries(scannerd PRIVATE uv_a)
 target_link_libraries(scannerd PRIVATE argtable3)
 target_include_directories(scannerd PRIVATE ${ARGTABLE_SRC_DIR}/src)
+target_include_directories(scannerd PRIVATE ${UV_SRC_DIR}/include)

@@ -48,8 +48,9 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   uv_signal_start(&sig, dev_signal_cb, SIGINT);
 
   req_data_t req_data;
-  strncpy(req_data.filename, dev->filename[0], 4096);
-  req_data.initalized = 0;
+  memset(&req_data, 0, sizeof(req_data_t));
+
+  strncpy(req_data.filename, dev->filename[0], MAX_DEV_INPUT_PATH);
 
   req_data.read_req.data = &req_data;
   uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
@@ -58,17 +59,17 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
   uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
-  uv_fs_t unlink_req;
-  uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
-  if (unlink_req.result < 0) {
-    printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
-  }
-  uv_fs_req_cleanup(&unlink_req);
+  // uv_fs_t unlink_req;
+  // uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
+  // if (unlink_req.result < 0) {
+  //   printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
+  // }
+  // uv_fs_req_cleanup(&unlink_req);
 
-  uv_pipe_t pipe;
-  uv_pipe_init(uv_default_loop(), &pipe, 0);
-  uv_pipe_bind(&pipe, SOCK_FILE);
-  uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
+  // uv_pipe_t pipe;
+  // uv_pipe_init(uv_default_loop(), &pipe, 0);
+  // uv_pipe_bind(&pipe, SOCK_FILE);
+  // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
 
   // uv_fs_event_t dev_input_fs_event;
   // uv_fs_event_init(uv_default_loop(), &dev_input_fs_event);
@@ -89,7 +90,7 @@ void dev_signal_cb(uv_signal_t* handle, int signum) {
 }
 
 void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int status) {
-  char path[PATH_MAX - DEV_INPUT_PATH_LEN];
+  char path[MAX_DEV_INPUT_PATH - DEV_INPUT_PATH_LEN];
   if (status != 0) return;
   if (!(events & UV_RENAME)) return;
 
@@ -101,8 +102,8 @@ void dev_fs_dir_cb(uv_fs_event_t* handle, const char* filename, int events, int 
   int event_num;
   if (!sv_parse_int(filename_sv, &event_num)) return;
 
-  memset(path, 0, PATH_MAX - DEV_INPUT_PATH_LEN);
-  snprintf(path, PATH_MAX - DEV_INPUT_PATH_LEN, "%s%s", DEV_INPUT_PATH, filename);
+  memset(path, 0, MAX_DEV_INPUT_PATH - DEV_INPUT_PATH_LEN);
+  snprintf(path, MAX_DEV_INPUT_PATH - DEV_INPUT_PATH_LEN, "%s%s", DEV_INPUT_PATH, filename);
 
   printf("[%d] %s\n", event_num, path);
 }
@@ -133,9 +134,29 @@ void dev_fs_read_cb(uv_fs_t* req) {
   }
 
   if (data->ev.type == EV_KEY) {
-    if (data->ev.value != KEY_HOLD && tracked_keys[data->ev.code] != NULL) {
-      // printf("Event: time f%ld.%06ld, ", data->ev.time.tv_sec, data->ev.time.tv_usec);
-      printf("%s: %i (%s) %s\n", data->filename, data->ev.code, tracked_keys[data->ev.code], data->ev.value == KEY_RELEASE ? "RELEASED" : "PRESSED");
+    if (data->ev.value == KEY_PRESS) {
+      if (data->ev.code == KEY_LEFTSHIFT) {
+        data->lshift = 1;
+      } else if (data->ev.code == KEY_RIGHTSHIFT) {
+        data->rshift = 1;
+      } else if (data->ev.code == KEY_ENTER) {
+        printf("%.*s\n", data->input_buf_index, data->input_buf);
+        data->input_buf_index = 0;
+      } else {
+        int shifted = data->lshift || data->rshift;
+        if (code_to_key[shifted][data->ev.code] != '\0') {
+          if (data->input_buf_index <= INPUT_BUF_LENGTH - 1) {
+            data->input_buf[data->input_buf_index] = code_to_key[shifted][data->ev.code];
+            data->input_buf_index++;
+          }
+        }
+      }
+    } else if (data->ev.value == KEY_RELEASE) {
+      if (data->ev.code == KEY_LEFTSHIFT) {
+        data->lshift = 0;
+      } else if (data->ev.code == KEY_RIGHTSHIFT) {
+        data->rshift = 0;
+      }
     }
   }
 
