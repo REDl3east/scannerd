@@ -1,10 +1,10 @@
 #include "evdev.h"
 
-#include <errno.h>
+#include <cerrno>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -77,6 +77,6 @@ int dev_input_query(dev_input_t* dev, const char* filename) {
   return 1;
 }
 
-inline int bit_is_set(const unsigned long* array, int bit) {
+int bit_is_set(const unsigned long* array, int bit) {
   return !!(array[bit / LONG_BITS] & (1LL << (bit % LONG_BITS)));
 }

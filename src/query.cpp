@@ -4,9 +4,9 @@
 #include "evdev.h"
 #include "sv.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <dirent.h>
-#include <stdlib.h>
-#include <string.h>
 
 static int dev_input_compare(const struct dirent** d1, const struct dirent** d2);
 void dev_input_scan(int meta);
@@ -85,7 +85,7 @@ void dev_input_scan(int meta) {
   int n = scandir(DEV_INPUT_PATH, &namelist, NULL, dev_input_compare);
   if (n == -1) return;
 
-  dev_input_t* devices = malloc(n * sizeof(dev_input_t));
+  dev_input_t* devices = (dev_input_t*)malloc(n * sizeof(dev_input_t));
   int device_count     = 0;
 
   for (int i = 0; i < n; i++) {

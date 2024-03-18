@@ -3,7 +3,7 @@
 #include "query.h"
 #include "run.h"
 
-#include <string.h>
+#include <cstring>
 
 int do_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type);
 
