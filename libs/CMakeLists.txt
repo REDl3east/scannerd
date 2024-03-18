@@ -9,6 +9,11 @@ FetchContent_Declare(
   SOURCE_DIR ${UV_SRC_DIR}
 )
 
+set(BUILD_SHARED_LIBS         OFF CACHE BOOL "" FORCE)
+set(ARGTABLE3_ENABLE_CONAN    OFF CACHE BOOL "" FORCE)
+set(ARGTABLE3_ENABLE_TESTS    OFF CACHE BOOL "" FORCE)
+set(ARGTABLE3_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
   argtable3
   GIT_REPOSITORY https://github.com/argtable/argtable3
