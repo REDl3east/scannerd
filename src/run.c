@@ -166,7 +166,6 @@ void dev_fs_open_cb(uv_fs_t* req) {
   uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
 }
 
-// TODO: if stat fails it may have supplied a device name
 void dev_fs_stat_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
