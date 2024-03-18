@@ -7,11 +7,11 @@ set(ARGTABLE_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/argtable3)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/libs)
 
 set(MAIN_SRC
-  ${CMAKE_CURRENT_SOURCE_DIR}/main.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/evdev.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/run.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/query.c
-  ${CMAKE_CURRENT_SOURCE_DIR}/sv.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/evdev.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/run.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/query.c
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/sv.c
 )
 
 add_executable(scannerd ${MAIN_SRC})
