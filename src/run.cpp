@@ -72,23 +72,23 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   // uv_pipe_bind(&pipe, SOCK_FILE);
   // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
 
-  // crow::SimpleApp app;
+  crow::SimpleApp app;
 
-  // CROW_ROUTE(app, "/")
-  // ([]() {
-  //   return "Hello world";
-  // });
+  CROW_ROUTE(app, "/")
+  ([]() {
+    return "Hello world";
+  });
 
-  // app.signal_clear();
+  auto f = app.port(18080)
+               .tick(std::chrono::milliseconds(10), []() {
+                 uv_run(uv_default_loop(), UV_RUN_ONCE);
+               })
+               .run_async();
 
-  // auto f = app.port(18080).run_async();
-
-  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  f.wait();
 
   uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-
-  printf("INFO: Exiting...");
 
   return 0;
 }
@@ -262,7 +262,7 @@ void on_connect_cb(uv_stream_t* stream, int status) {
 char code_to_key(int shifted, unsigned short code) {
   if (!shifted) {
     switch (code) {
-      // clang-format off
+        // clang-format off
       case KEY_0:          return '0';
       case KEY_1:          return '1';
       case KEY_2:          return '2';
@@ -327,7 +327,7 @@ char code_to_key(int shifted, unsigned short code) {
     }
   } else {
     switch (code) {
-      // clang-format off
+        // clang-format off
         case KEY_0:          return ')';
         case KEY_1:          return '!';
         case KEY_2:          return '@';
