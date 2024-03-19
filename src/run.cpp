@@ -76,14 +76,14 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   while (1) {
     uv_run(uv_default_loop(), UV_RUN_ONCE);
     if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-      uv_loop_close(uv_default_loop());
       break;
     }
   }
 
-  arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
-
   CROW_LOG_INFO << "Exiting run subcommand.";
+  
+  arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+  uv_loop_close(uv_default_loop());
 
   return 0;
 }
