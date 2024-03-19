@@ -49,10 +49,62 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
 
   CROW_ROUTE(app, "/")
   ([](const crow::request& req) {
-    std::string s = "";
+    std::string s =
+        "<!DOCTYPE html>\n"
+        "<html lang=\"en\">\n"
+        "  <head>\n"
+        "    <title>scannerd</title>\n"
+        "    <style>\n"
+        "    table {\n"
+        "      border: 1px solid black;\n"
+        "      table-layout:fixed;\n"
+        "      border-collapse: collapse;\n"
+        "      width: 100%;\n"
+        "    }\n"
+        "    th {\n"
+        "      padding-top: 12px;\n"
+        "      padding-bottom: 12px;\n"
+        "      text-align: left;\n"
+        "      background-color: #04AA6D;\n"
+        "      color: white;\n"
+        "    }\n"
+        "    th, td {\n"
+        "      border: 1px solid black;\n"
+        "      padding: 8px;\n"
+        "      word-wrap: break-word;\n"
+        "    }\n"
+        "    tr:nth-child(even){background-color: #f2f2f2;}\n"
+        "    tr:hover {background-color: #ddd;}\n"
+        "    </style>\n"
+        "  </head>\n"
+        "  <body>\n"
+        "    <table>\n"
+        "      <thead>\n"
+        "        <tr>\n"
+        "          <th>\n"
+        "            Name\n"
+        "          </th>\n"
+        "          <th>\n"
+        "            Value\n"
+        "          </th>\n"
+        "        </tr>\n"
+        "      </thead>\n"
+        "      <tbody>\n";
+
     for (auto& i : req.headers) {
-      s += i.first + ", " + i.second + "\n";
+      s += "      <tr>\n";
+      s += "        <td>\n";
+      s += "          " + i.first + "\n";
+      s += "        </td>\n";
+      s += "        <td>\n";
+      s += "          " + i.second + "\n";
+      s += "        </td>\n";
+      s += "      </tr>\n";
     }
+    s += "      </tbody>\n"
+         "    </table>\n"
+         "  </body>\n"
+         "</html>\n";
 
     return s;
   });
@@ -81,7 +133,7 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   }
 
   CROW_LOG_INFO << "Exiting 'run' subcommand.";
-  
+
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
   uv_loop_close(uv_default_loop());
 
