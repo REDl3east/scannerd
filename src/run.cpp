@@ -80,7 +80,7 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     }
   }
 
-  CROW_LOG_INFO << "Exiting run subcommand.";
+  CROW_LOG_INFO << "Exiting 'run' subcommand.";
   
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
   uv_loop_close(uv_default_loop());
