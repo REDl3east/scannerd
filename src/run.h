@@ -4,8 +4,6 @@
 #include "evdev.h"
 #include "uv.h"
 
-#define SOCK_FILE "/run/scannerd.sock"
-
 #define INPUT_BUF_LENGTH 64
 
 typedef struct req_data_t {
@@ -32,13 +30,6 @@ void dev_fs_read_cb(uv_fs_t* req);
 void dev_fs_open_cb(uv_fs_t* req);
 void dev_fs_stat_cb(uv_fs_t* req);
 
-// sock stuff
-
-void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf);
-void on_close_cb(uv_handle_t* client);
-void on_write_complete_cb(uv_write_t* req, int status);
-void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf);
-void on_connect_cb(uv_stream_t* stream, int status);
-
 char code_to_key(int shifted, unsigned short code);
+
 #endif // _RUN_H_

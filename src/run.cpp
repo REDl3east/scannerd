@@ -10,11 +10,11 @@
 #include <cstring>
 
 int do_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
-  arg_file_t* dev  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
-  arg_lit_t* help  = arg_lit0("h", "help", "print this help and exit.");
-  arg_lit_t* vers  = arg_lit0("v", "version", "print version information and exit.");
-  arg_end_t* end   = arg_end(20);
-  void* argtable[] = {dev, help, vers, end};
+  arg_file_t* dev_arg  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
+  arg_lit_t* help_arg  = arg_lit0("h", "help", "print this help and exit.");
+  arg_lit_t* vers_arg  = arg_lit0("v", "version", "print version information and exit.");
+  arg_end_t* end_arg  = arg_end(20);
+  void* argtable[] = {dev_arg, help_arg, vers_arg, end_arg};
 
   if (arg_nullcheck(argtable) != 0) {
     fprintf(stderr, "%s: insufficient memory\n", argv[0]);
@@ -23,7 +23,7 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
 
   int nerrors = arg_parse(argc, argv, argtable);
 
-  if (help->count > 0) {
+  if (help_arg->count > 0) {
     printf("Usage: %s", argv[0]);
     arg_print_syntax(stdout, argtable, "\n");
     arg_print_glossary(stdout, argtable, "  %-10s %s\n");
@@ -31,46 +31,18 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     return 0;
   }
 
-  if (vers->count > 0) {
+  if (vers_arg->count > 0) {
     printf("March 2024, Dalton Overmyer\n");
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
     return 0;
   }
 
   if (nerrors > 0) {
-    arg_print_errors(stderr, end, argv[0]);
+    arg_print_errors(stderr, end_arg, argv[0]);
     fprintf(stderr, "Try '%s %s --help' for more information.\n", prog, subcommand);
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
     return 1;
   }
-
-  uv_signal_t sig;
-  uv_signal_init(uv_default_loop(), &sig);
-  uv_signal_start(&sig, dev_signal_cb, SIGINT);
-
-  req_data_t req_data;
-  memset(&req_data, 0, sizeof(req_data_t));
-
-  strncpy(req_data.filename, dev->filename[0], MAX_DEV_INPUT_PATH);
-
-  req_data.read_req.data = &req_data;
-  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
-
-  req_data.poll_req.data = &req_data;
-  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
-  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
-
-  // uv_fs_t unlink_req;
-  // uv_fs_unlink(uv_default_loop(), &unlink_req, SOCK_FILE, NULL);
-  // if (unlink_req.result < 0) {
-  //   printf("INFO: Could not unlink '%s': %s\n", SOCK_FILE, uv_strerror(unlink_req.result));
-  // }
-  // uv_fs_req_cleanup(&unlink_req);
-
-  // uv_pipe_t pipe;
-  // uv_pipe_init(uv_default_loop(), &pipe, 0);
-  // uv_pipe_bind(&pipe, SOCK_FILE);
-  // uv_listen((uv_stream_t*)&pipe, 0, on_connect_cb);
 
   crow::SimpleApp app;
 
@@ -79,16 +51,32 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     return "Hello world";
   });
 
-  auto f = app.port(18080)
-               .tick(std::chrono::milliseconds(10), []() {
-                 uv_run(uv_default_loop(), UV_RUN_ONCE);
-               })
-               .run_async();
+  req_data_t req_data;
+  std::once_flag flag;
 
-  f.wait();
+  app.port(18080)
+      .tick(std::chrono::milliseconds(10), [&flag, &req_data, dev_arg]() {
+        std::call_once(flag, [&req_data, dev_arg]() {
+          memset(&req_data, 0, sizeof(req_data_t));
+
+          strncpy(req_data.filename, dev_arg->filename[0], MAX_DEV_INPUT_PATH);
+
+          req_data.read_req.data = &req_data;
+          uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
+
+          req_data.poll_req.data = &req_data;
+          uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
+          uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
+        });
+
+        uv_run(uv_default_loop(), UV_RUN_ONCE);
+      })
+      .run();
 
   uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
+
+  CROW_LOG_INFO << "Exiting run subcommand.";
 
   return 0;
 }
@@ -172,7 +160,7 @@ void dev_fs_open_cb(uv_fs_t* req) {
   data->lshift          = 0;
   data->rshift          = 0;
 
-  printf("INFO: '%s': initialized\n", data->filename);
+  CROW_LOG_INFO << "'" << data->filename << "': initialized";
 
   uv_fs_req_cleanup(req);
   uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
@@ -182,81 +170,31 @@ void dev_fs_stat_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
   if (req->result < 0) {
-    fprintf(stderr, "WARNING: '%s': %s, will wait for a connection.\n", data->filename, uv_strerror(req->result));
+    CROW_LOG_WARNING << "'" << data->filename << "': " << uv_strerror(req->result) << ", will wait for a connection.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   if (!S_ISCHR(req->statbuf.st_mode)) {
-    fprintf(stderr, "ERROR: '%s': Not a character device.\n", data->filename);
+    CROW_LOG_ERROR << "'" << data->filename << "': Not a character device.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   if (!dev_input_query(&data->info, data->filename)) {
-    fprintf(stderr, "ERROR: '%s': Failed to grab evdev info.\n", data->filename);
+    CROW_LOG_ERROR << "'" << data->filename << "': Failed to grab evdev info.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   if (!bit_is_set(data->info.bits, EV_KEY)) {
-    fprintf(stderr, "ERROR: '%s': Device does not support EV_KEY event.\n", data->filename);
+    CROW_LOG_ERROR << "'" << data->filename << "': Device does not support EV_KEY event.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   uv_fs_req_cleanup(req);
   uv_fs_open(uv_default_loop(), req, data->filename, O_RDONLY, 0, dev_fs_open_cb);
-}
-
-// sock stuff
-
-void my_alloc_cb(uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-  buf->base = (char*)malloc(suggested_size);
-  buf->len  = suggested_size;
-}
-
-void on_close_cb(uv_handle_t* client) {
-  free(client);
-}
-
-void on_write_complete_cb(uv_write_t* req, int status) {
-  // uv_close((uv_handle_t*)req->handle, on_close_cb);
-  free(req->data);
-  free(req);
-}
-
-// Each buffer is used only once and the user is responsible for freeing it in the uv_udp_recv_cb or the uv_read_cb callback.
-// We do it in the write complete callback :)
-void on_read_cb(uv_stream_t* client, ssize_t nread, const uv_buf_t* buf) {
-  if (nread > 0) {
-    printf("read: ");
-    printf("%.*s", (int)buf->len, buf->base);
-
-    uv_write_t* write_req = (uv_write_t*)malloc(sizeof(uv_write_t));
-    write_req->data       = (void*)buf->base;
-
-    uv_write(write_req, client, buf, 1, on_write_complete_cb);
-  }
-
-  if (nread < 0 || nread == UV_EOF) {
-    printf("disconnected\n");
-    uv_close((uv_handle_t*)client, on_close_cb);
-    return;
-  }
-}
-
-void on_connect_cb(uv_stream_t* stream, int status) {
-  uv_pipe_t* client = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
-  uv_pipe_init(stream->loop, client, 0);
-  int r = uv_accept(stream, (uv_stream_t*)client);
-
-  if (r < 0) {
-    // error
-  }
-
-  uv_read_start((uv_stream_t*)client, my_alloc_cb, on_read_cb);
-  printf("connected...\n");
 }
 
 char code_to_key(int shifted, unsigned short code) {
