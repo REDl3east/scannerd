@@ -10,11 +10,12 @@
 #include <cstring>
 
 int do_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
-  arg_file_t* dev_arg = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
+  arg_file_t* dev_arg = arg_file1(nullptr, nullptr, nullptr, "/dev/input/eventX path.");
+  arg_int_t* port_arg = arg_int0("p", "port", nullptr, "The port to run the server on.");
   arg_lit_t* help_arg = arg_lit0("h", "help", "print this help and exit.");
   arg_lit_t* vers_arg = arg_lit0("v", "version", "print version information and exit.");
   arg_end_t* end_arg  = arg_end(20);
-  void* argtable[]    = {dev_arg, help_arg, vers_arg, end_arg};
+  void* argtable[]    = {dev_arg, port_arg, help_arg, vers_arg, end_arg};
 
   if (arg_nullcheck(argtable) != 0) {
     fprintf(stderr, "%s: insufficient memory\n", argv[0]);
@@ -56,29 +57,30 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     return s;
   });
 
+  uint16_t port = port_arg->count > 0 ? port_arg->ival[0] : 18080;
+
+  auto f = app.port(port).run_async();
+
   req_data_t req_data;
-  std::once_flag flag;
+  memset(&req_data, 0, sizeof(req_data_t));
 
-  app.port(18080)
-      .tick(std::chrono::milliseconds(10), [&flag, &req_data, dev_arg]() {
-        std::call_once(flag, [&req_data, dev_arg]() {
-          memset(&req_data, 0, sizeof(req_data_t));
+  strncpy(req_data.filename, dev_arg->filename[0], MAX_DEV_INPUT_PATH);
 
-          strncpy(req_data.filename, dev_arg->filename[0], MAX_DEV_INPUT_PATH);
+  req_data.read_req.data = &req_data;
+  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
 
-          req_data.read_req.data = &req_data;
-          uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
+  req_data.poll_req.data = &req_data;
+  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
+  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
-          req_data.poll_req.data = &req_data;
-          uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
-          uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
-        });
+  while (1) {
+    uv_run(uv_default_loop(), UV_RUN_ONCE);
+    if (f.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+      uv_loop_close(uv_default_loop());
+      break;
+    }
+  }
 
-        uv_run(uv_default_loop(), UV_RUN_ONCE);
-      })
-      .run();
-
-  uv_loop_close(uv_default_loop());
   arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
 
   CROW_LOG_INFO << "Exiting run subcommand.";
@@ -94,15 +96,15 @@ void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const 
   req_data_t* data = (req_data_t*)req->data;
 
   if (status < 0) {
-    printf("WARNING: '%s': %s, will wait for a connection.\n", data->filename, uv_strerror(status));
+    CROW_LOG_WARNING << "'" << data->filename << "': " << uv_strerror(status) << ", will wait for a connection.";
     return;
   }
   if (data->initalized) {
-    printf("WARNING: '%s': device already initialized.\n", data->filename);
+    CROW_LOG_WARNING << "'" << data->filename << "': device already initialized.";
     return;
   }
 
-  printf("INFO: '%s': device found, attempting to initialize.\n", data->filename);
+  CROW_LOG_INFO << "'" << data->filename << "': device found, attempting to initialize.";
   uv_fs_stat(uv_default_loop(), &data->read_req, data->filename, dev_fs_stat_cb);
 }
 
@@ -123,7 +125,7 @@ void dev_fs_read_cb(uv_fs_t* req) {
         data->rshift = 1;
       } else if (data->ev.code == KEY_ENTER || data->ev.code == KEY_KPENTER) {
         if (data->input_buf_index != 0) {
-          printf("%s: %.*s\n", data->filename, data->input_buf_index, data->input_buf);
+          CROW_LOG_INFO << "'" << data->filename << "' input: " << std::string(data->input_buf, data->input_buf_index);
         }
         data->input_buf_index = 0;
       } else {
@@ -152,7 +154,7 @@ void dev_fs_open_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
   if (req->result < 0) {
-    fprintf(stderr, "Error at opening file: '%s': %ld : %s.\n", data->filename, req->result, uv_strerror(req->result));
+    CROW_LOG_ERROR << "Error at opening file: '" << data->filename << "': " << uv_strerror(req->result);
     uv_fs_req_cleanup(req);
     return;
   }
