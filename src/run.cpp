@@ -10,11 +10,11 @@
 #include <cstring>
 
 int do_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
-  arg_file_t* dev_arg  = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
-  arg_lit_t* help_arg  = arg_lit0("h", "help", "print this help and exit.");
-  arg_lit_t* vers_arg  = arg_lit0("v", "version", "print version information and exit.");
+  arg_file_t* dev_arg = arg_file1(NULL, NULL, NULL, "/dev/input/eventX path.");
+  arg_lit_t* help_arg = arg_lit0("h", "help", "print this help and exit.");
+  arg_lit_t* vers_arg = arg_lit0("v", "version", "print version information and exit.");
   arg_end_t* end_arg  = arg_end(20);
-  void* argtable[] = {dev_arg, help_arg, vers_arg, end_arg};
+  void* argtable[]    = {dev_arg, help_arg, vers_arg, end_arg};
 
   if (arg_nullcheck(argtable) != 0) {
     fprintf(stderr, "%s: insufficient memory\n", argv[0]);
@@ -47,8 +47,13 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   crow::SimpleApp app;
 
   CROW_ROUTE(app, "/")
-  ([]() {
-    return "Hello world";
+  ([](const crow::request& req) {
+    std::string s = "";
+    for (auto& i : req.headers) {
+      s += i.first + ", " + i.second + "\n";
+    }
+
+    return s;
   });
 
   req_data_t req_data;
