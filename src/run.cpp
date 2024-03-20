@@ -92,14 +92,14 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
         "      <tbody>\n";
 
     for (auto& i : req.headers) {
-      s += "      <tr>\n";
-      s += "        <td>\n";
-      s += "          " + i.first + "\n";
-      s += "        </td>\n";
-      s += "        <td>\n";
-      s += "          " + i.second + "\n";
-      s += "        </td>\n";
-      s += "      </tr>\n";
+      s += "        <tr>\n";
+      s += "          <td>\n";
+      s += "            " + i.first + "\n";
+      s += "          </td>\n";
+      s += "          <td>\n";
+      s += "            " + i.second + "\n";
+      s += "          </td>\n";
+      s += "        </tr>\n";
     }
     s += "      </tbody>\n"
          "    </table>\n"
@@ -177,7 +177,7 @@ void dev_fs_read_cb(uv_fs_t* req) {
         data->rshift = 1;
       } else if (data->ev.code == KEY_ENTER || data->ev.code == KEY_KPENTER) {
         if (data->input_buf_index != 0) {
-          CROW_LOG_INFO << "'" << data->filename << "' input: " << std::string(data->input_buf, data->input_buf_index);
+          CROW_LOG_INFO << data->info.name << ": " << std::string(data->input_buf, data->input_buf_index);
         }
         data->input_buf_index = 0;
       } else {
@@ -206,7 +206,7 @@ void dev_fs_open_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
   if (req->result < 0) {
-    CROW_LOG_ERROR << "Error at opening file: '" << data->filename << "': " << uv_strerror(req->result);
+    CROW_LOG_ERROR << "Error opening file: '" << data->filename << "': " << uv_strerror(req->result);
     uv_fs_req_cleanup(req);
     return;
   }
@@ -219,7 +219,15 @@ void dev_fs_open_cb(uv_fs_t* req) {
   data->lshift          = 0;
   data->rshift          = 0;
 
-  CROW_LOG_INFO << "'" << data->filename << "': initialized";
+  CROW_LOG_INFO << data->filename
+                << ": initialized"
+                << " (name: '"
+                << data->info.name
+                << "' phys: '"
+                << data->info.phys
+                << "' uniq: '"
+                << data->info.uniq
+                << "')";
 
   uv_fs_req_cleanup(req);
   uv_fs_read(uv_default_loop(), req, data->file_id, &data->ev_buf, 1, -1, dev_fs_read_cb);
@@ -229,25 +237,25 @@ void dev_fs_stat_cb(uv_fs_t* req) {
   req_data_t* data = (req_data_t*)req->data;
 
   if (req->result < 0) {
-    CROW_LOG_WARNING << "'" << data->filename << "': " << uv_strerror(req->result) << ", will wait for a connection.";
+    CROW_LOG_WARNING << data->filename << ": " << uv_strerror(req->result) << ", will wait for a connection.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   if (!S_ISCHR(req->statbuf.st_mode)) {
-    CROW_LOG_ERROR << "'" << data->filename << "': Not a character device.";
+    CROW_LOG_ERROR << data->filename << ": Not a character device.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   if (!dev_input_query(&data->info, data->filename)) {
-    CROW_LOG_ERROR << "'" << data->filename << "': Failed to grab evdev info.";
+    CROW_LOG_ERROR << data->filename << ": Failed to grab evdev info.";
     uv_fs_req_cleanup(req);
     return;
   }
 
   if (!bit_is_set(data->info.bits, EV_KEY)) {
-    CROW_LOG_ERROR << "'" << data->filename << "': Device does not support EV_KEY event.";
+    CROW_LOG_ERROR << data->filename << ": Device does not support EV_KEY event.";
     uv_fs_req_cleanup(req);
     return;
   }
