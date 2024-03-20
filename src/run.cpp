@@ -62,6 +62,12 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   crow::SimpleApp app;
 
   CROW_ROUTE(app, "/")
+  ([](const crow::request& req, crow::response& res) {
+    res.set_static_file_info("static/index.html");
+    res.end();
+  });
+
+  CROW_ROUTE(app, "/headers")
   ([](const crow::request& req) {
     std::string s =
         "<!DOCTYPE html>\n"
@@ -129,8 +135,9 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     crow::json::wvalue r({{"data", std::vector<crow::json::wvalue>()}});
 
     auto& arr = req_data.last_input_buf.array();
+    int index = 0;
     for (int i = req_data.last_input_buf.size() - 1; i >= 0; i--) {
-      r["data"][i] = arr.at(i);
+      r["data"][index++] = arr.at(i);
     }
 
     return r;
@@ -142,8 +149,9 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     crow::json::wvalue r({{"data", std::vector<crow::json::wvalue>()}});
 
     auto& arr = req_data.last_input_buf.array();
+    int index = 0;
     for (int i = (count > req_data.last_input_buf.size() ? req_data.last_input_buf.size() : count) - 1; i >= 0; i--) {
-      r["data"][i] = arr.at(i);
+      r["data"][index++] = arr.at(i);
     }
 
     return r;
@@ -389,7 +397,7 @@ char code_to_key(int shifted, unsigned short code) {
     }
   } else {
     switch (code) {
-      // clang-format off
+        // clang-format off
         case KEY_0:          return ')';
         case KEY_1:          return '!';
         case KEY_2:          return '@';
