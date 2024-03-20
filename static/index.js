@@ -1,6 +1,6 @@
 var tbl = document.getElementById("id-table-scans");
 
-fetch("/first/10").then(async (resp) => {
+fetch("/last").then(async (resp) => {
   var json = await resp.json();
   var data = json["data"]
   console.log(data);
@@ -11,10 +11,23 @@ fetch("/first/10").then(async (resp) => {
     
     td.innerText = data[i];
     
-    tr.appendChild(td);
-    tbl.appendChild(tr);
+    tr.append(td);
+    tbl.append(tr);
   }
 
 })
 
+
+const ws = new WebSocket('ws://localhost:18080/ws')
+ws.onopen = () => {
+  ws.onmessage = (message) => {
+    var tr = document.createElement("tr");
+    var td = document.createElement("td");
+    
+    td.innerText = message.data;
+    
+    tr.prepend(td);
+    tbl.prepend(tr);
+  }  
+}
 

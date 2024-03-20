@@ -9,8 +9,10 @@
 #include <cstdlib>
 #include <cstring>
 #include <mutex>
+#include <unordered_set>
 
 std::mutex mtx;
+std::unordered_set<crow::websocket::connection*> users;
 
 int do_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
   arg_file_t* dev_arg = arg_file1(nullptr, nullptr, nullptr, "/dev/input/eventX path.");
@@ -183,6 +185,22 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     return r;
   });
 
+  CROW_WEBSOCKET_ROUTE(app, "/ws")
+      .onopen([&](crow::websocket::connection& conn) {
+        CROW_LOG_INFO << "new websocket connection from " << conn.get_remote_ip();
+        std::lock_guard<std::mutex> _(mtx);
+        users.insert(&conn);
+      })
+      .onclose([&](crow::websocket::connection& conn, const std::string& reason) {
+        CROW_LOG_INFO << "websocket connection closed: " << reason;
+        std::lock_guard<std::mutex> _(mtx);
+        users.erase(&conn);
+      })
+      .onmessage([&](crow::websocket::connection& conn, const std::string& data, bool is_binary) {
+        CROW_LOG_WARNING << "We never expect data from the client, so we close the connection.";
+        conn.close();
+      });
+
   uint16_t port = port_arg->count > 0 ? port_arg->ival[0] : 18080;
 
   auto f = app.port(port).run_async();
@@ -241,6 +259,10 @@ void dev_fs_read_cb(uv_fs_t* req) {
         if (data->input_buf.size() != 0) {
           std::lock_guard<std::mutex> _(mtx);
           CROW_LOG_INFO << data->info.name << ": " << data->input_buf;
+
+          for (auto u : users) {
+            u->send_text(data->input_buf);
+          }
 
           data->last_input_buf.push(data->input_buf);
           data->input_buf.clear();
