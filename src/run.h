@@ -8,7 +8,7 @@
 #include <string>
 
 #define INPUT_BUF_LENGTH 64
-#define INPUT_BUF_KEEP   5
+#define INPUT_BUF_KEEP   64
 
 typedef struct req_data_t {
   int initalized;

@@ -8,6 +8,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
+
+std::mutex mtx;
 
 int do_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv) {
   arg_file_t* dev_arg = arg_file1(nullptr, nullptr, nullptr, "/dev/input/eventX path.");
@@ -44,6 +47,17 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     arg_freetable(argtable, sizeof(argtable) / sizeof(argtable[0]));
     return 1;
   }
+
+  req_data_t req_data;
+
+  strncpy(req_data.filename, dev_arg->filename[0], MAX_DEV_INPUT_PATH);
+
+  req_data.read_req.data = &req_data;
+  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
+
+  req_data.poll_req.data = &req_data;
+  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
+  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
   crow::SimpleApp app;
 
@@ -109,20 +123,61 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
     return s;
   });
 
+  CROW_ROUTE(app, "/last")
+  ([&req_data](const crow::request& req) {
+    std::lock_guard<std::mutex> _(mtx);
+    crow::json::wvalue r({{"data", std::vector<crow::json::wvalue>()}});
+
+    auto& arr = req_data.last_input_buf.array();
+    for (int i = req_data.last_input_buf.size() - 1; i >= 0; i--) {
+      r["data"][i] = arr.at(i);
+    }
+
+    return r;
+  });
+
+  CROW_ROUTE(app, "/last/<int>")
+  ([&req_data](const crow::request& req, int count) {
+    std::lock_guard<std::mutex> _(mtx);
+    crow::json::wvalue r({{"data", std::vector<crow::json::wvalue>()}});
+
+    auto& arr = req_data.last_input_buf.array();
+    for (int i = (count > req_data.last_input_buf.size() ? req_data.last_input_buf.size() : count) - 1; i >= 0; i--) {
+      r["data"][i] = arr.at(i);
+    }
+
+    return r;
+  });
+
+  CROW_ROUTE(app, "/first")
+  ([&req_data](const crow::request& req) {
+    std::lock_guard<std::mutex> _(mtx);
+    crow::json::wvalue r({{"data", std::vector<crow::json::wvalue>()}});
+
+    auto& arr = req_data.last_input_buf.array();
+    for (int i = 0; i < req_data.last_input_buf.size(); i++) {
+      r["data"][i] = arr.at(i);
+    }
+
+    return r;
+  });
+
+  CROW_ROUTE(app, "/first/<int>")
+  ([&req_data](const crow::request& req, int count) {
+    std::lock_guard<std::mutex> _(mtx);
+    crow::json::wvalue r({{"data", std::vector<crow::json::wvalue>()}});
+
+    auto& arr = req_data.last_input_buf.array();
+    for (int i = 0; i < (count > req_data.last_input_buf.size() ? req_data.last_input_buf.size() : count); i++) {
+      r["data"][i] = arr.at(i);
+    }
+
+    return r;
+  });
+
   uint16_t port = port_arg->count > 0 ? port_arg->ival[0] : 18080;
 
   auto f = app.port(port).run_async();
-
-  req_data_t req_data;
-
-  strncpy(req_data.filename, dev_arg->filename[0], MAX_DEV_INPUT_PATH);
-
-  req_data.read_req.data = &req_data;
-  uv_fs_stat(uv_default_loop(), &req_data.read_req, req_data.filename, dev_fs_stat_cb);
-
-  req_data.poll_req.data = &req_data;
-  uv_fs_poll_init(uv_default_loop(), &req_data.poll_req);
-  uv_fs_poll_start(&req_data.poll_req, dev_fs_poll_cb, req_data.filename, 1000);
 
   while (1) {
     uv_run(uv_default_loop(), UV_RUN_ONCE);
@@ -176,6 +231,7 @@ void dev_fs_read_cb(uv_fs_t* req) {
         data->rshift = 1;
       } else if (data->ev.code == KEY_ENTER || data->ev.code == KEY_KPENTER) {
         if (data->input_buf.size() != 0) {
+          std::lock_guard<std::mutex> _(mtx);
           CROW_LOG_INFO << data->info.name << ": " << data->input_buf;
 
           data->last_input_buf.push(data->input_buf);
