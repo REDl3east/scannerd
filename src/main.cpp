@@ -7,6 +7,9 @@
 
 int do_subcommand(const char* prog, const char* subcommand, int argc, char** argv, subcommand_type type);
 
+#include <iostream>
+#include "CircularArray.h"
+
 int main(int argc, char** argv) {
   if (argc < 2) {
     fprintf(stderr, "%s: Expected (query | run | -h | --help) subcommand, got EOF.\n", argv[0]);

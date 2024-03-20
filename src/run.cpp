@@ -114,7 +114,6 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   auto f = app.port(port).run_async();
 
   req_data_t req_data;
-  memset(&req_data, 0, sizeof(req_data_t));
 
   strncpy(req_data.filename, dev_arg->filename[0], MAX_DEV_INPUT_PATH);
 
@@ -176,16 +175,17 @@ void dev_fs_read_cb(uv_fs_t* req) {
       } else if (data->ev.code == KEY_RIGHTSHIFT) {
         data->rshift = 1;
       } else if (data->ev.code == KEY_ENTER || data->ev.code == KEY_KPENTER) {
-        if (data->input_buf_index != 0) {
-          CROW_LOG_INFO << data->info.name << ": " << std::string(data->input_buf, data->input_buf_index);
+        if (data->input_buf.size() != 0) {
+          CROW_LOG_INFO << data->info.name << ": " << data->input_buf;
+
+          data->last_input_buf.push(data->input_buf);
+          data->input_buf.clear();
         }
-        data->input_buf_index = 0;
       } else {
         int shifted = data->lshift || data->rshift;
         if (code_to_key(shifted, data->ev.code) != '\0') {
-          if (data->input_buf_index <= INPUT_BUF_LENGTH - 1) {
-            data->input_buf[data->input_buf_index] = code_to_key(shifted, data->ev.code);
-            data->input_buf_index++;
+          if (data->input_buf.size() <= INPUT_BUF_LENGTH - 1) {
+            data->input_buf += code_to_key(shifted, data->ev.code);
           }
         }
       }
@@ -211,13 +211,14 @@ void dev_fs_open_cb(uv_fs_t* req) {
     return;
   }
 
-  data->initalized      = 1;
-  data->file_id         = req->result;
-  data->ev_buf.base     = (char*)&data->ev;
-  data->ev_buf.len      = sizeof(data->ev);
-  data->input_buf_index = 0;
-  data->lshift          = 0;
-  data->rshift          = 0;
+  data->initalized  = 1;
+  data->file_id     = req->result;
+  data->ev_buf.base = (char*)&data->ev;
+  data->ev_buf.len  = sizeof(data->ev);
+
+  data->input_buf = "";
+  data->lshift    = 0;
+  data->rshift    = 0;
 
   CROW_LOG_INFO << data->filename
                 << ": initialized"
@@ -332,7 +333,7 @@ char code_to_key(int shifted, unsigned short code) {
     }
   } else {
     switch (code) {
-        // clang-format off
+      // clang-format off
         case KEY_0:          return ')';
         case KEY_1:          return '!';
         case KEY_2:          return '@';

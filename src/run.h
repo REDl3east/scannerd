@@ -4,7 +4,11 @@
 #include "evdev.h"
 #include "uv.h"
 
+#include "CircularArray.h"
+#include <string>
+
 #define INPUT_BUF_LENGTH 64
+#define INPUT_BUF_KEEP   5
 
 typedef struct req_data_t {
   int initalized;
@@ -16,10 +20,11 @@ typedef struct req_data_t {
   uv_buf_t ev_buf;
   struct input_event ev;
 
-  int lshift;
-  int rshift;
-  char input_buf[INPUT_BUF_LENGTH];
-  int input_buf_index;
+  int lshift = 0;
+  int rshift = 0;
+
+  std::string input_buf;
+  CircularArray<std::string, INPUT_BUF_KEEP> last_input_buf;
 } req_data_t;
 
 int do_run_subcommand(const char* prog, const char* subcommand, int argc, char** argv);
