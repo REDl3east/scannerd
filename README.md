@@ -16,6 +16,7 @@ npm install
 npm run build
 ```
 
+### Onion Commands
 ```bash
 # Send main executable to Onion
 sshpass -p "onioneer" scp ./scannerd root@Omega-4D72:/root
