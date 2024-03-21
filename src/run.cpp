@@ -220,10 +220,6 @@ int do_run_subcommand(const char* prog, const char* subcommand, int argc, char**
   return 0;
 }
 
-void dev_signal_cb(uv_signal_t* handle, int signum) {
-  uv_stop(uv_default_loop());
-}
-
 void dev_fs_poll_cb(uv_fs_poll_t* req, int status, const uv_stat_t* prev, const uv_stat_t* curr) {
   req_data_t* data = (req_data_t*)req->data;
 

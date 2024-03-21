@@ -10,7 +10,7 @@ make
 
 ```bash
 # Send to Onion
-sshpass -p "onioneer" scp -r ./scannerd root@Omega-4D72:/root
+sshpass -p "onioneer" scp -r ./scannerd ../static root@Omega-4D72:/root
 ```
 
 ### Dependancies
