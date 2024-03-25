@@ -8,8 +8,9 @@ export default {
       searchOpen: false,
       searchLoading: false,
       searchValue: "",
+      searchFocused: false,
 
-      itemsPerPage: 20,
+      itemsPerPage: 10,
       headers: [
         {
           title: 'Description',
@@ -23,11 +24,25 @@ export default {
       ],
       serverItems: [],
       totalItems: 0,
+      querySelected: [],
     };
   },
   methods: {
     toggleSearch() {
       this.searchOpen = !this.searchOpen;
+
+      if (this.searchOpen) {
+        // set focus to search input field
+        const el = this.$refs.searchInput.$el;
+        const input = el.querySelector(
+          "input:not([type=hidden]),textarea:not([type=hidden])"
+        );
+        if (input) {
+          setTimeout(() => {
+            input.focus();
+          }, 0);
+        }
+      }
     },
     async onSearchClicked() {
       this.loadItems({
@@ -39,6 +54,8 @@ export default {
 
     async loadItems({ page, itemsPerPage, sortBy }) {
       if (this.searchValue.length == 0) return;
+
+      this.querySelected = [];
 
       var key = undefined;
       var order = undefined;
@@ -85,16 +102,30 @@ export default {
     <v-toolbar :collapse="!searchOpen">
       <v-btn icon="mdi-dots-vertical"></v-btn>
 
-      <v-text-field v-model="searchValue" :disabled="searchLoading" v-show="isSearchOpen" :loading="searchLoading"
-        append-inner-icon="mdi-magnify" density="compact" variant="solo" hide-details single-line
-        @click:append-inner="onSearchClicked" @keyup.enter="onSearchClicked" clearable></v-text-field>
+      <v-text-field v-model="searchValue" :disabled="searchLoading" v-show="isSearchOpen"
+        :loading="searchLoading" append-inner-icon="mdi-magnify" density="compact" variant="solo" hide-details
+        single-line @click:append-inner="onSearchClicked" @keyup.enter="onSearchClicked" clearable
+        ref="searchInput"></v-text-field>
 
       <v-btn :icon="searchOpen ? 'mdi-arrow-left' : 'mdi-magnify'" @click="toggleSearch"></v-btn>
     </v-toolbar>
 
-    <v-data-table-server v-show="isSearchOpen" v-model:items-per-page="itemsPerPage" :headers="headers"
-      :items="serverItems" :items-length="totalItems" :loading="searchLoading" item-value="name"
-      @update:options="loadItems"></v-data-table-server>
+    <v-data-table-server v-model="querySelected" v-show="isSearchOpen" v-model:items-per-page="itemsPerPage"
+      :headers="headers" :item-value="item => `${item.fdcId}`" select-strategy="single" show-select return-object
+      show-expand :items="serverItems" :items-length="totalItems" :loading="searchLoading" item-value="name"
+      @update:options="loadItems">
+
+      <template v-slot:expanded-row="{ columns, item }">
+        <tr>
+          <td :colspan="columns.length">
+            {{ item.ingredients }}
+          </td>
+        </tr>
+      </template>
+
+    </v-data-table-server>
+
+    <span>{{ querySelected }}</span>
 
   </v-app>
 </template>
