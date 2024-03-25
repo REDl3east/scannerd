@@ -7,8 +7,8 @@ import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 
-import { fa } from "vuetify/iconsets/fa";
-import { aliases, mdi } from "vuetify/lib/iconsets/mdi";
+import { fa } from "vuetify/lib/iconsets/fa.mjs";
+import { aliases, mdi } from "vuetify/lib/iconsets/mdi.mjs";
 import "@mdi/font/css/materialdesignicons.css";
 import "@fortawesome/fontawesome-free/css/all.css";
 
