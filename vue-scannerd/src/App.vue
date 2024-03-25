@@ -44,20 +44,27 @@ export default {
         }
       }
     },
-    async onSearchClicked() {
+    onSearchClicked() {
       this.loadItems({
         page: 1,
-        itemsPerPage: this.itemsPerPage,
-        sortBy: undefined,
+        itemsPerPage: this.itemsPerPage
       });
     },
 
     async loadItems({ page, itemsPerPage, sortBy }) {
-      if (this.searchValue !== undefined && this.searchValue.length == 0) return;
-      if (itemsPerPage == -1) {
-        itemsPerPage = 100;
+      if (this.searchValue === null || this.searchValue == undefined) this.searchValue = "";
+
+      if (this.searchValue.length == 0) {
+        this.serverItems = [];
+        this.totalItems = 0;
+        this.searchLoading = false;
+        return;
       }
 
+      if (itemsPerPage === -1) {
+        itemsPerPage = 100;
+      }
+      console.log(itemsPerPage);
 
       this.querySelected = [];
 
@@ -80,7 +87,7 @@ export default {
       query += `&pageNumber=${page}&pageSize=${itemsPerPage}`;
 
       this.searchLoading = true;
-      fetch(query).then(resp => resp.json()).then((json) => {
+      await fetch(query).then(resp => resp.json()).then((json) => {
         this.serverItems = json["foods"];
         this.totalItems = json["totalHits"] >= 10000 ? 10000 : json["totalHits"];
         this.searchLoading = false;
@@ -95,6 +102,9 @@ export default {
     isSearchOpen() {
       return this.searchOpen;
     },
+    hasSearchItems() {
+      return this.searchOpen && this.serverItems.length != 0;
+    }
   },
 
   mounted() {
@@ -117,22 +127,29 @@ export default {
       <v-btn :icon="searchOpen ? 'mdi-arrow-left' : 'mdi-magnify'" @click="toggleSearch"></v-btn>
     </v-toolbar>
 
-    <v-data-table-server v-model="querySelected" v-show="isSearchOpen" v-model:items-per-page="itemsPerPage"
-      :headers="headers" :item-value="item => `${item.fdcId}`" select-strategy="single" show-select return-object
-      show-expand :items="serverItems" :items-length="totalItems" :loading="searchLoading" item-value="name"
-      @update:options="loadItems">
+    <div v-show="hasSearchItems" class="ml-4 mr-4 mb-4">
+      <v-card>
 
-      <template v-slot:expanded-row="{ columns, item }">
-        <tr>
-          <td :colspan="columns.length">
-            {{ item.ingredients }}
-          </td>
-        </tr>
-      </template>
+        <v-data-table-server v-model="querySelected" v-model:items-per-page="itemsPerPage" :headers="headers"
+          :item-value="item => `${item.fdcId}`" select-strategy="single" show-select return-object show-expand
+          :items="serverItems" :items-length="totalItems" :loading="searchLoading" item-value="name"
+          @update:options="loadItems">
 
-    </v-data-table-server>
+          <template v-slot:expanded-row="{ columns, item }">
+            <tr>
+              <td :colspan="columns.length">
+                {{ item.ingredients }}
+              </td>
+            </tr>
+          </template>
 
-    <span>{{ querySelected }}</span>
+        </v-data-table-server>
+
+
+
+        <span>{{ querySelected }}</span>
+      </v-card>
+    </div>
 
   </v-app>
 </template>
