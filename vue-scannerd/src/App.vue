@@ -53,7 +53,11 @@ export default {
     },
 
     async loadItems({ page, itemsPerPage, sortBy }) {
-      if (this.searchValue.length == 0) return;
+      if (this.searchValue !== undefined && this.searchValue.length == 0) return;
+      if (itemsPerPage == -1) {
+        itemsPerPage = 100;
+      }
+
 
       this.querySelected = [];
 
@@ -67,9 +71,13 @@ export default {
         }
       }
 
-      var query = key === undefined || order === undefined ?
-        this.FDC_SEARCH_API_ENDPOINT + `?api_key=${this.apiKey}&query=${this.searchValue}&pageNumber=${page}&pageSize=${itemsPerPage}` :
-        this.FDC_SEARCH_API_ENDPOINT + `?api_key=${this.apiKey}&query=${this.searchValue}&pageNumber=${page}&pageSize=${itemsPerPage}&sortBy=${key}&sortOrder=${order}`;
+      var query = this.FDC_SEARCH_API_ENDPOINT + `?api_key=${this.apiKey}&query=${this.searchValue}`;
+
+      if (key !== undefined && order !== undefined) {
+        query += `&sortBy=${key}&sortOrder=${order}`;
+      }
+
+      query += `&pageNumber=${page}&pageSize=${itemsPerPage}`;
 
       this.searchLoading = true;
       fetch(query).then(resp => resp.json()).then((json) => {
@@ -102,10 +110,9 @@ export default {
     <v-toolbar :collapse="!searchOpen">
       <v-btn icon="mdi-dots-vertical"></v-btn>
 
-      <v-text-field v-model="searchValue" :disabled="searchLoading" v-show="isSearchOpen"
-        :loading="searchLoading" append-inner-icon="mdi-magnify" density="compact" variant="solo" hide-details
-        single-line @click:append-inner="onSearchClicked" @keyup.enter="onSearchClicked" clearable
-        ref="searchInput"></v-text-field>
+      <v-text-field v-model="searchValue" :disabled="searchLoading" v-show="isSearchOpen" :loading="searchLoading"
+        append-inner-icon="mdi-magnify" density="compact" variant="solo" hide-details single-line
+        @click:append-inner="onSearchClicked" @keyup.enter="onSearchClicked" clearable ref="searchInput"></v-text-field>
 
       <v-btn :icon="searchOpen ? 'mdi-arrow-left' : 'mdi-magnify'" @click="toggleSearch"></v-btn>
     </v-toolbar>
