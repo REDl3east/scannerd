@@ -12,6 +12,8 @@ import { aliases, mdi } from "vuetify/lib/iconsets/mdi.mjs";
 import "@mdi/font/css/materialdesignicons.css";
 import "@fortawesome/fontawesome-free/css/all.css";
 
+
+
 const vuetify = createVuetify({
   theme: {
     defaultTheme: "light",
@@ -28,4 +30,5 @@ const vuetify = createVuetify({
   directives,
 });
 
-createApp(App).use(vuetify).mount('#app')
+const app = createApp(App);
+app.use(vuetify).mount('#app');

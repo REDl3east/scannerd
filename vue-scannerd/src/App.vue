@@ -1,9 +1,11 @@
 <script>
+
 export default {
   data() {
     return {
       apiKey: "7sOxe0FcXGgnL1UwDUjOmzGYSMSnYYncdQbsuHWe",
       FDC_SEARCH_API_ENDPOINT: "https://api.nal.usda.gov/fdc/v1/foods/search",
+      FDC_FOOD_API_ENDPOINT: "https://api.nal.usda.gov/fdc/v1/food/",
 
       searchOpen: false,
       searchLoading: false,
@@ -25,6 +27,9 @@ export default {
       serverItems: [],
       totalItems: 0,
       querySelected: [],
+
+      websocket_url: "ws://" + location.host + "/ws",
+      websocket: null,
     };
   },
   methods: {
@@ -62,9 +67,8 @@ export default {
       }
 
       if (itemsPerPage === -1) {
-        itemsPerPage = 100;
+        itemsPerPage = 25;
       }
-      console.log(itemsPerPage);
 
       this.querySelected = [];
 
@@ -93,7 +97,7 @@ export default {
         this.searchLoading = false;
         console.log(json);
       }).catch(e => {
-        this.loading = false;
+        this.searchLoading = false;
       });
     },
   },
@@ -104,15 +108,43 @@ export default {
     },
     hasSearchItems() {
       return this.searchOpen && this.serverItems.length != 0;
+    },
+    hasSelected() {
+      return !this.searchLoading && this.querySelected.length > 0;
+    }
+  },
+
+  watch: {
+    async querySelected(query) {
+      if (query.length <= 0) return;
+      let value = query[0];
+
+      var query = this.FDC_FOOD_API_ENDPOINT + value.fdcId + `?api_key=${this.apiKey}`;
+
+      this.searchLoading = true;
+      await fetch(query).then(resp => resp.json()).then((json) => {
+        this.searchLoading = false;
+        console.log(json);
+      }).catch(e => {
+        this.searchLoading = false;
+      });
+
+
     }
   },
 
   mounted() {
+    this.socket = new WebSocket(this.websocket_url);
+    this.socket.onopen = (event) => {
+      this.socket.onmessage = (event) => {
+        this.searchOpen = true;
+        this.searchValue = event.data;
+        this.onSearchClicked();
+      };
+    };
 
   },
 };
-// import HelloWorld from './components/HelloWorld.vue'
-// import TheWelcome from './components/TheWelcome.vue'
 </script>
 
 <template>
@@ -145,10 +177,13 @@ export default {
 
         </v-data-table-server>
 
-
-
-        <span>{{ querySelected }}</span>
       </v-card>
+
+      <v-card v-show="hasSelected" class="mt-4">
+
+      </v-card>
+
+
     </div>
 
   </v-app>
