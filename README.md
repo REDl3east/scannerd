@@ -1,3 +1,12 @@
+# scannerd
+This IoT application allows users to effortlessly scan barcodes and instantly access nutritional facts. Leveraging the compact and powerful Onion Omega2 development board and a USB barcode decoder, this project delivers real-time data retrieval and display.
+
+## Features
+- **Real-Time Scanning:** Quickly scan barcodes using a USB barcode decoder for instant nutritional information.
+- **Responsive Frontend:** Built with Vue, the application provides a smooth and intuitive user experience on various devices.
+- **Efficient Backend:** Utilizes libuv for asynchronous I/O operations and Crow for a lightweight yet robust HTTP server.
+- **IoT Integration:** Seamlessly integrates with the Onion Omega2 development board, showcasing the potential of IoT in everyday applications.
+
 ### Quick Start
 
 ```bash
