@@ -1,5 +1,4 @@
 <script>
-
 export default {
   data() {
     return {
@@ -15,14 +14,14 @@ export default {
       itemsPerPage: 10,
       headers: [
         {
-          title: 'Description',
-          key: 'description',
-          align: 'start',
+          title: "Description",
+          key: "description",
+          align: "start",
           sortable: false,
         },
-        { title: 'Category', key: 'foodCategory', align: 'end', sortable: false, },
-        { title: 'Brand', key: 'brandOwner', align: 'end', sortable: false, },
-        { title: 'FDC ID', key: 'fdcId', align: 'end', sortable: true, },
+        { title: "Category", key: "foodCategory", align: "end", sortable: false },
+        { title: "Brand", key: "brandOwner", align: "end", sortable: false },
+        { title: "FDC ID", key: "fdcId", align: "end", sortable: true },
       ],
       serverItems: [],
       totalItems: 0,
@@ -51,12 +50,13 @@ export default {
     onSearchClicked() {
       this.loadItems({
         page: 1,
-        itemsPerPage: this.itemsPerPage
+        itemsPerPage: this.itemsPerPage,
       });
     },
 
     async loadItems({ page, itemsPerPage, sortBy }) {
-      if (this.searchValue === null || this.searchValue == undefined) this.searchValue = "";
+      if (this.searchValue === null || this.searchValue == undefined)
+        this.searchValue = "";
 
       if (this.searchValue.length == 0) {
         this.serverItems = [];
@@ -81,7 +81,9 @@ export default {
         }
       }
 
-      var query = this.FDC_SEARCH_API_ENDPOINT + `?api_key=${this.apiKey}&query=${this.searchValue}`;
+      var query =
+        this.FDC_SEARCH_API_ENDPOINT +
+        `?api_key=${this.apiKey}&query=${this.searchValue}`;
 
       if (key !== undefined && order !== undefined) {
         query += `&sortBy=${key}&sortOrder=${order}`;
@@ -90,18 +92,51 @@ export default {
       query += `&pageNumber=${page}&pageSize=${itemsPerPage}`;
 
       this.searchLoading = true;
-      await fetch(query).then(resp => resp.json()).then((json) => {
-        this.serverItems = json["foods"];
-        this.totalItems = json["totalHits"] >= 10000 ? 10000 : json["totalHits"];
-        this.searchLoading = false;
-        console.log(json);
-      }).catch(e => {
-        this.searchLoading = false;
-      });
+      await fetch(query)
+        .then((resp) => resp.json())
+        .then((json) => {
+          this.serverItems = json["foods"];
+          this.totalItems = json["totalHits"] >= 10000 ? 10000 : json["totalHits"];
+          this.searchLoading = false;
+          console.log(json);
+        })
+        .catch((e) => {
+          this.searchLoading = false;
+        });
     },
-    cleanup(foodNutrients){
-      return foodNutrients;
-    }
+    cleanup(items) {
+      console.log(items);
+      let newItems = items.flatMap((item) => {
+        let newItem = Object.assign({}, item);
+
+        if(newItem.unitName == "G"){
+          newItem.unitName = "g";
+          newItem.nutrientNumber = newItem.nutrientNumber / 100;
+        }
+        if(newItem.unitName == "KCAL"){
+          newItem.unitName = "";
+
+        }
+
+        if (newItem.nutrientName == "Protein") {
+          return newItem;
+        }
+        if (newItem.nutrientName == "Energy") {
+          newItem.nutrientName = "Calories"
+          return newItem;
+        }
+
+
+
+        return undefined;
+      });
+
+      newItems = newItems.filter(function (element) {
+        return element !== undefined;
+      });
+
+      return newItems;
+    },
   },
 
   computed: {
@@ -113,7 +148,7 @@ export default {
     },
     hasSelected() {
       return !this.searchLoading && this.querySelected.length > 0;
-    }
+    },
   },
 
   watch: {
@@ -124,15 +159,16 @@ export default {
       var query = this.FDC_FOOD_API_ENDPOINT + value.fdcId + `?api_key=${this.apiKey}`;
 
       this.searchLoading = true;
-      await fetch(query).then(resp => resp.json()).then((json) => {
-        this.searchLoading = false;
-        console.log(json);
-      }).catch(e => {
-        this.searchLoading = false;
-      });
-
-
-    }
+      await fetch(query)
+        .then((resp) => resp.json())
+        .then((json) => {
+          this.searchLoading = false;
+          console.log(json);
+        })
+        .catch((e) => {
+          this.searchLoading = false;
+        });
+    },
   },
 
   mounted() {
@@ -144,7 +180,6 @@ export default {
         this.onSearchClicked();
       };
     };
-
   },
 };
 </script>
@@ -154,21 +189,44 @@ export default {
     <v-toolbar :collapse="!searchOpen">
       <v-btn icon="mdi-dots-vertical"></v-btn>
 
-      <v-text-field v-model="searchValue" :disabled="searchLoading" v-show="isSearchOpen" :loading="searchLoading"
-        append-inner-icon="mdi-magnify" density="compact" variant="solo" hide-details single-line
-        @click:append-inner="onSearchClicked" @keyup.enter="onSearchClicked" clearable ref="searchInput"></v-text-field>
+      <v-text-field
+        v-model="searchValue"
+        :disabled="searchLoading"
+        v-show="isSearchOpen"
+        :loading="searchLoading"
+        append-inner-icon="mdi-magnify"
+        density="compact"
+        variant="solo"
+        hide-details
+        single-line
+        @click:append-inner="onSearchClicked"
+        @keyup.enter="onSearchClicked"
+        clearable
+        ref="searchInput"
+      ></v-text-field>
 
-      <v-btn :icon="searchOpen ? 'mdi-arrow-left' : 'mdi-magnify'" @click="toggleSearch"></v-btn>
+      <v-btn
+        :icon="searchOpen ? 'mdi-arrow-left' : 'mdi-magnify'"
+        @click="toggleSearch"
+      ></v-btn>
     </v-toolbar>
 
     <div v-show="hasSearchItems" class="ml-4 mr-4 mb-4">
       <v-card>
-
-        <v-data-table-server v-model="querySelected" v-model:items-per-page="itemsPerPage" :headers="headers"
-          :item-value="item => `${item.fdcId}`" select-strategy="single" show-select return-object show-expand
-          :items="serverItems" :items-length="totalItems" :loading="searchLoading"
-          @update:options="loadItems">
-
+        <v-data-table-server
+          v-model="querySelected"
+          v-model:items-per-page="itemsPerPage"
+          :headers="headers"
+          :item-value="(item) => `${item.fdcId}`"
+          select-strategy="single"
+          show-select
+          return-object
+          show-expand
+          :items="serverItems"
+          :items-length="totalItems"
+          :loading="searchLoading"
+          @update:options="loadItems"
+        >
           <template v-slot:expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length">
@@ -188,18 +246,11 @@ export default {
               </td>
             </tr> -->
           </template>
-
         </v-data-table-server>
-
       </v-card>
 
-      <v-card v-show="hasSelected" class="mt-4">
-
-      </v-card>
-
-
+      <v-card v-show="hasSelected" class="mt-4"> </v-card>
     </div>
-
   </v-app>
 </template>
 
