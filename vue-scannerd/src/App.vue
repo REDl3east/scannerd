@@ -7,7 +7,7 @@ export default {
       FDC_SEARCH_API_ENDPOINT: "https://api.nal.usda.gov/fdc/v1/foods/search",
       FDC_FOOD_API_ENDPOINT: "https://api.nal.usda.gov/fdc/v1/food/",
 
-      searchOpen: false,
+      searchOpen: true,
       searchLoading: false,
       searchValue: "",
       searchFocused: false,
@@ -27,7 +27,6 @@ export default {
       serverItems: [],
       totalItems: 0,
       querySelected: [],
-
       websocket_url: "ws://" + location.host + "/ws",
       websocket: null,
     };
@@ -100,6 +99,9 @@ export default {
         this.searchLoading = false;
       });
     },
+    cleanup(foodNutrients){
+      return foodNutrients;
+    }
   },
 
   computed: {
@@ -164,15 +166,27 @@ export default {
 
         <v-data-table-server v-model="querySelected" v-model:items-per-page="itemsPerPage" :headers="headers"
           :item-value="item => `${item.fdcId}`" select-strategy="single" show-select return-object show-expand
-          :items="serverItems" :items-length="totalItems" :loading="searchLoading" item-value="name"
+          :items="serverItems" :items-length="totalItems" :loading="searchLoading"
           @update:options="loadItems">
 
           <template v-slot:expanded-row="{ columns, item }">
             <tr>
               <td :colspan="columns.length">
-                {{ item.ingredients }}
+                <v-table>
+                  <tbody>
+                    <tr v-for="i in cleanup(item.foodNutrients)">
+                      <td>{{ i.nutrientName }}</td>
+                      <td>{{ i.nutrientNumber + " " + i.unitName }}</td>
+                    </tr>
+                  </tbody>
+                </v-table>
               </td>
             </tr>
+            <!-- <tr>
+              <td :colspan="columns.length">
+                {{ Object.hasOwn(item, 'foodNutrients') ? item.foodNutrients : "N/A" }}
+              </td>
+            </tr> -->
           </template>
 
         </v-data-table-server>
