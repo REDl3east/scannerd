@@ -7,6 +7,11 @@ This IoT application allows users to effortlessly scan barcodes and instantly ac
 - **Efficient Backend:** Utilizes libuv for asynchronous I/O operations and Crow for a lightweight yet robust HTTP server.
 - **IoT Integration:** Seamlessly integrates with the Onion Omega2 development board, showcasing the potential of IoT in everyday applications.
 
+## Technology
+- **Frontend:** Vue.js
+- **Backend:** libuv, Crow
+- **Hardware:** Onion Omega2 development board, USB barcode decoder
+
 ### Quick Start
 
 ```bash
