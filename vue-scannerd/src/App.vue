@@ -113,6 +113,10 @@ export default {
           newItem.unitName = "g";
           newItem.nutrientNumber = newItem.nutrientNumber / 100;
         }
+        if(newItem.unitName == "MG"){
+          newItem.unitName = "mg";
+          newItem.nutrientNumber = newItem.nutrientNumber / 100;
+        }
         if(newItem.unitName == "KCAL"){
           newItem.unitName = "";
 
@@ -125,15 +129,11 @@ export default {
           newItem.nutrientName = "Calories"
           return newItem;
         }
-
-
-
-        return undefined;
+        
+        return newItem;
       });
 
-      newItems = newItems.filter(function (element) {
-        return element !== undefined;
-      });
+
 
       return newItems;
     },
