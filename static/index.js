@@ -46,11 +46,13 @@ async function set_to_loading(barcode) {
                     set_loading_success(json)
                 })
                 .catch((e) => {
+                    console.log(e);
                     set_loading_fail();
                 });
 
         })
         .catch((e) => {
+            console.log(e);
             set_loading_fail();
         });
 
@@ -61,13 +63,13 @@ function set_loading_success(result) {
     console.log(result["labelNutrients"]);
 
 
+    $('#nutrition').nutritionLabel({showLegacyVersion : false});
+
     document.getElementById('app-loading-success').removeAttribute('hidden');
     document.getElementById('app-start').setAttribute('hidden', '');
     document.getElementById('app-loading-fail').setAttribute('hidden', '');
     document.getElementById('app-no-results').setAttribute('hidden', '');
     document.getElementById('app-loading').setAttribute('hidden', '');
-
-
 
 }
 
