@@ -9,7 +9,7 @@ Scan barcodes and instantly access nutritional facts with this application. Usin
 ## Technology
 - **Frontend:** Vue.js
 - **Backend:** libuv, Crow, FoodData Central API
-- **Hardware:** Onion Omega2 development board, USB barcode decoder
+- **Hardware:** Onion Omega2 development board, [USB barcode decoder](https://www.amazon.com/dp/B08SQBDT4W?psc=1&ref=ppx_yo2ov_dt_b_product_details)
 
 ### Quick Start
 
