@@ -1,5 +1,5 @@
 # scannerd
-Scan barcodes and instantly access nutritional facts with this application. Using an Onion Omega2 development board and a USB barcode decoder, the project provides real-time data retrieval and display.
+Scan barcodes and instantly access nutritional facts with this application. Using an Onion Omega2 and a USB barcode decoder, the project provides real-time data retrieval and display.
 
 ## Features
 - **Real-Time Scanning:** Quickly scan barcodes using a USB barcode decoder for instant nutritional information.
