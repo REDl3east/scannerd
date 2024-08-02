@@ -60,10 +60,31 @@ async function set_to_loading(barcode) {
 
 function set_loading_success(result) {
     const nutrients = result["labelNutrients"];
-    console.log(result["labelNutrients"]);
+    console.log(result);
 
 
-    $('#nutrition').nutritionLabel({showLegacyVersion : false});
+    $('#nutrition').nutritionLabel({
+        showLegacyVersion: false,
+        itemName: result["brandOwner"] + ": " + result["description"],
+        ingredientList: result["ingredients"],
+        valueCalories: nutrients["calories"] === undefined ? undefined : nutrients["calories"]["value"],
+        valueTotalFat: nutrients["fat"] === undefined ? undefined : nutrients["fat"]["value"],
+        valueSatFat: nutrients["saturatedFat"] === undefined ? undefined : nutrients["saturatedFat"]["value"],
+        valueTransFat: nutrients["transFat"] === undefined ? undefined : nutrients["transFat"]["value"],
+        valueCholesterol: nutrients["cholesterol"] === undefined ? undefined : nutrients["cholesterol"]["value"],
+        valueSodium: nutrients["sodium"] === undefined ? undefined : nutrients["sodium"]["value"],
+        valueTotalCarb: nutrients["carbohydrates"] === undefined ? undefined : nutrients["carbohydrates"]["value"],
+        valueFibers: nutrients["fiber"] === undefined ? undefined : nutrients["fiber"]["value"],
+        valueSugars: nutrients["sugars"] === undefined ? undefined : nutrients["sugars"]["value"],
+        valueAddedSugars: nutrients["addedSugar"] === undefined ? undefined : nutrients["addedSugar"]["value"],
+        valueProteins: nutrients["protein"] === undefined ? undefined : nutrients["protein"]["value"],
+        
+        showVitaminD : false,
+        showPotassium_2018 : false,
+        showCalcium : false,
+        showIron : false,
+        showCaffeine : false,
+    });
 
     document.getElementById('app-loading-success').removeAttribute('hidden');
     document.getElementById('app-start').setAttribute('hidden', '');
