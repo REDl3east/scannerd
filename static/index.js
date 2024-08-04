@@ -18,7 +18,7 @@ socket.addEventListener('error', (event) => {
     console.error('WebSocket error observed:', event);
 });
 
-const API_KEY = "7sOxe0FcXGgnL1UwDUjOmzGYSMSnYYncdQbsuHWe";
+const API_KEY = "???";
 const FDC_SEARCH_API_ENDPOINT = "https://api.nal.usda.gov/fdc/v1/foods/search";
 const FDC_FOOD_API_ENDPOINT = "https://api.nal.usda.gov/fdc/v1/food/";
 
