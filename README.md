@@ -23,10 +23,6 @@ cmake \
 -D CMAKE_BUILD_TYPE=Release \
 ..
 make
-
-cd ../vue-scannerd
-npm install
-npm run build
 ```
 
 ### Onion Commands
